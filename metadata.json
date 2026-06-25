@@ -1,0 +1,6 @@
+{
+  "name": "SL Maintenance Hub",
+  "description": "Transport fleet maintenance management and tyre tracking system",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

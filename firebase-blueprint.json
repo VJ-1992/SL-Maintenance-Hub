@@ -1,0 +1,615 @@
+{
+  "entities": {
+    "Vehicle": {
+      "title": "Vehicle",
+      "description": "A fleet truck or vehicle under management.",
+      "type": "object",
+      "properties": {
+        "truckNumber": {
+          "type": "string",
+          "description": "Unique vehicle registration plate/chassis number (primary identifier)."
+        },
+        "manufacturer": {
+          "type": "string",
+          "enum": ["Tata", "Ashok Leyland"],
+          "description": "Manufacturer of the truck."
+        },
+        "tyresCount": {
+          "type": "number",
+          "description": "Number of tyres on the vehicle (12 or 14)."
+        },
+        "hasLiftAxle": {
+          "type": "boolean",
+          "description": "Whether the truck has a lift axle."
+        },
+        "supervisorName": {
+          "type": "string",
+          "description": "Responsible supervisor name."
+        },
+        "driverName": {
+          "type": "string",
+          "description": "Name of primary driver."
+        },
+        "mobileNumber": {
+          "type": "string",
+          "description": "Contact number of driver."
+        },
+        "currentLocation": {
+          "type": "string",
+          "description": "Current tracking location of the truck."
+        },
+        "lastUpdated": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO timestamp of last update."
+        },
+        "insuranceExpiry": {
+          "type": "string",
+          "format": "date",
+          "description": "Optional insurance expiry date."
+        },
+        "fitnessExpiry": {
+          "type": "string",
+          "format": "date",
+          "description": "Optional fitness expiry date."
+        },
+        "permitExpiry": {
+          "type": "string",
+          "format": "date",
+          "description": "Optional permit expiry date."
+        },
+        "currentTripFrom": {
+          "type": "string",
+          "description": "Source of current trip."
+        },
+        "currentTripTo": {
+          "type": "string",
+          "description": "Destination of current trip."
+        },
+        "tripStartDate": {
+          "type": "string",
+          "format": "date",
+          "description": "Start date of current trip."
+        },
+        "tripStatus": {
+          "type": "string",
+          "enum": ["Planned", "In Transit", "Reached Destination", "Completed"],
+          "description": "Trip current operational status."
+        },
+        "partyName": {
+          "type": "string",
+          "description": "Client party name for the trip."
+        }
+      },
+      "required": ["truckNumber", "manufacturer", "tyresCount", "hasLiftAxle", "supervisorName", "driverName", "currentLocation", "lastUpdated"]
+    },
+    "ServiceLog": {
+      "title": "ServiceLog",
+      "description": "Detailed log entries for services performed on vehicles and tyres.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique record ID."
+        },
+        "truckNumber": {
+          "type": "string",
+          "description": "Vehicle number associated."
+        },
+        "date": {
+          "type": "string",
+          "format": "date",
+          "description": "Date service was performed."
+        },
+        "type": {
+          "type": "string",
+          "description": "The category of maintenance / service type."
+        },
+        "positionId": {
+          "type": "string",
+          "description": "Optional tyre position affected."
+        },
+        "tyreSerialBefore": {
+          "type": "string",
+          "description": "Optional tyre serial before replacement."
+        },
+        "tyreSerialAfter": {
+          "type": "string",
+          "description": "Optional tyre serial after replacement."
+        },
+        "description": {
+          "type": "string",
+          "description": "A detailed narration of tasks completed."
+        },
+        "cost": {
+          "type": "number",
+          "description": "Cost of maintenance."
+        },
+        "odometerReading": {
+          "type": "number",
+          "description": "Odometer log in KM."
+        },
+        "supervisorName": {
+          "type": "string",
+          "description": "Who authorized and supervised the log."
+        },
+        "workshop": {
+          "type": "string",
+          "description": "Workshop location name."
+        },
+        "remarks": {
+          "type": "string",
+          "description": "Supervisor custom notes/remarks."
+        },
+        "nextServiceDueDate": {
+          "type": "string",
+          "format": "date",
+          "description": "Calculated next due date."
+        },
+        "nextServiceDueKm": {
+          "type": "number",
+          "description": "Calculated next due kilometer threshold."
+        }
+      },
+      "required": ["id", "truckNumber", "date", "type", "description", "cost", "supervisorName"]
+    },
+    "TyreMaster": {
+      "title": "TyreMaster",
+      "description": "Master registry containing exhaustive technical history for every physical tyre.",
+      "type": "object",
+      "properties": {
+        "serialNumber": {
+          "type": "string",
+          "description": "Exhaustive unique manufacturing/brand serial stamp (primary key)."
+        },
+        "tyreNumber": {
+          "type": "string",
+          "description": "Optional custom internal asset number."
+        },
+        "brand": {
+          "type": "string",
+          "description": "Manufacturer (Apollo, MRF, JK Tyre, etc.)."
+        },
+        "model": {
+          "type": "string",
+          "description": "Model identification."
+        },
+        "size": {
+          "type": "string",
+          "description": "Dimension spec of the tyre."
+        },
+        "purchaseDate": {
+          "type": "string",
+          "format": "date",
+          "description": "Purchase date."
+        },
+        "purchaseCost": {
+          "type": "number",
+          "description": "Purchase transaction cost."
+        },
+        "vendorName": {
+          "type": "string",
+          "description": "Dealer vendor details."
+        },
+        "vendor": {
+          "type": "string",
+          "description": "Alternate vendor field."
+        },
+        "warrantyPeriodMonths": {
+          "type": "number",
+          "description": "Warranty validity period."
+        },
+        "warrantyExpiry": {
+          "type": "string",
+          "format": "date",
+          "description": "Expiry date of warranty."
+        },
+        "manufacturingDate": {
+          "type": "string",
+          "format": "date",
+          "description": "Manufacturing date."
+        },
+        "expectedLifeKm": {
+          "type": "number",
+          "description": "Expected life in KM."
+        },
+        "currentRunningKm": {
+          "type": "number",
+          "description": "Current accumulated running distance."
+        },
+        "status": {
+          "type": "string",
+          "enum": ["New", "Active", "Spare", "Removed", "Retread", "Scrap"],
+          "description": "Current lifecycle state."
+        },
+        "retreadCount": {
+          "type": "number",
+          "description": "Number of retreading iterations."
+        },
+        "currentVehicle": {
+          "type": "string",
+          "description": "Currently mounted vehicle number if any."
+        },
+        "currentPosition": {
+          "type": "string",
+          "description": "Currently mounted position if any."
+        },
+        "purchaseInvoiceDoc": {
+          "type": "string",
+          "description": "Invoice attachment name/URL."
+        },
+        "warrantyCardDoc": {
+          "type": "string",
+          "description": "Warranty card name/URL."
+        },
+        "retreadInvoiceDoc": {
+          "type": "string",
+          "description": "Retread invoice attachment."
+        }
+      },
+      "required": ["serialNumber", "brand", "model", "size", "purchaseDate", "purchaseCost", "vendorName", "manufacturingDate", "expectedLifeKm", "currentRunningKm", "status", "retreadCount"]
+    },
+    "TyreHistory": {
+      "title": "TyreHistory",
+      "description": "Lifecycle mounting and removal history of individual tyres.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique history entry ID."
+        },
+        "serialNumber": {
+          "type": "string",
+          "description": "Tyre identifier."
+        },
+        "truckNumber": {
+          "type": "string",
+          "description": "Vehicle on which the tyre was mounted."
+        },
+        "positionId": {
+          "type": "string",
+          "description": "Wheel chassis position code."
+        },
+        "positionName": {
+          "type": "string",
+          "description": "User friendly position name."
+        },
+        "installedDate": {
+          "type": "string",
+          "format": "date",
+          "description": "Date tyre was mounted on vehicle."
+        },
+        "removedDate": {
+          "type": "string",
+          "format": "date",
+          "description": "Date tyre was unmounted."
+        },
+        "kmAtInstallation": {
+          "type": "number",
+          "description": "Vehicle odometer reading during mounting."
+        },
+        "kmAtRemoval": {
+          "type": "number",
+          "description": "Vehicle odometer reading during removal."
+        },
+        "totalKmRun": {
+          "type": "number",
+          "description": "Calculated running KM of tyre during this phase."
+        },
+        "removalReason": {
+          "type": "string",
+          "description": "Reason for unmounting."
+        },
+        "supervisorName": {
+          "type": "string",
+          "description": "Supervisor executing removal."
+        }
+      },
+      "required": ["id", "serialNumber", "truckNumber", "positionId", "positionName", "installedDate", "kmAtInstallation", "supervisorName"]
+    },
+    "TyreMovement": {
+      "title": "TyreMovement",
+      "description": "Audit trails for tyre relocations, rotations, and spares replacements.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Transaction identifier."
+        },
+        "serialNumber": {
+          "type": "string",
+          "description": "Tyre unique key."
+        },
+        "sourceVehicle": {
+          "type": "string",
+          "description": "Origin vehicle identifier ('Spare Rack' if from storage)."
+        },
+        "destinationVehicle": {
+          "type": "string",
+          "description": "Target vehicle."
+        },
+        "sourcePosition": {
+          "type": "string",
+          "description": "Starting position code."
+        },
+        "destinationPosition": {
+          "type": "string",
+          "description": "End position code."
+        },
+        "date": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Event timestamp."
+        },
+        "supervisorName": {
+          "type": "string",
+          "description": "Acting Supervisor."
+        }
+      },
+      "required": ["id", "serialNumber", "sourceVehicle", "destinationVehicle", "sourcePosition", "destinationPosition", "date", "supervisorName"]
+    },
+    "TyreInspection": {
+      "title": "TyreInspection",
+      "description": "Inspections checking pressure, treads, and structural integrity.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Evaluation record ID."
+        },
+        "serialNumber": {
+          "type": "string",
+          "description": "Inspected tyre serial."
+        },
+        "truckNumber": {
+          "type": "string",
+          "description": "Vehicle reference."
+        },
+        "positionId": {
+          "type": "string",
+          "description": "Chassis position index."
+        },
+        "inspectionDate": {
+          "type": "string",
+          "format": "date",
+          "description": "Execution date."
+        },
+        "supervisorName": {
+          "type": "string",
+          "description": "Reviewing inspector/supervisor name."
+        },
+        "pressurePsi": {
+          "type": "number",
+          "description": "Tyre PSI reading."
+        },
+        "treadDepthMm": {
+          "type": "number",
+          "description": "Remaining tread in mm."
+        },
+        "sidewallCondition": {
+          "type": "string",
+          "description": "Condition state of the sidewall."
+        },
+        "remarks": {
+          "type": "string",
+          "description": "Specific finding remarks."
+        },
+        "photoUrl": {
+          "type": "string",
+          "description": "Filename reference or URL of inspection snap."
+        }
+      },
+      "required": ["id", "serialNumber", "truckNumber", "positionId", "inspectionDate", "supervisorName", "pressurePsi", "treadDepthMm", "sidewallCondition", "remarks"]
+    },
+    "TyreExpense": {
+      "title": "TyreExpense",
+      "description": "Expense entries associated with procurement and major maintenance.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Transaction code."
+        },
+        "serialNumber": {
+          "type": "string",
+          "description": "Tyre reference."
+        },
+        "truckNumber": {
+          "type": "string",
+          "description": "Optional associated vehicle."
+        },
+        "expenseType": {
+          "type": "string",
+          "enum": ["Purchase", "Retread", "Replacement"],
+          "description": "Financial type."
+        },
+        "cost": {
+          "type": "number",
+          "description": "Indian Rupees cost."
+        },
+        "date": {
+          "type": "string",
+          "format": "date",
+          "description": "Transaction date."
+        },
+        "vendor": {
+          "type": "string",
+          "description": "Vendor."
+        },
+        "invoiceNumber": {
+          "type": "string",
+          "description": "Invoice sequence number."
+        },
+        "remarks": {
+          "type": "string",
+          "description": "Optional details."
+        }
+      },
+      "required": ["id", "serialNumber", "expenseType", "cost", "date", "vendor", "invoiceNumber"]
+    },
+    "RetreadRecord": {
+      "title": "RetreadRecord",
+      "description": "Registry tracking retreading actions.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Record primary key."
+        },
+        "serialNumber": {
+          "type": "string",
+          "description": "Tyre serial."
+        },
+        "retreadVendor": {
+          "type": "string",
+          "description": "Retread workshop vendor."
+        },
+        "retreadCost": {
+          "type": "number",
+          "description": "Cost."
+        },
+        "retreadDate": {
+          "type": "string",
+          "format": "date",
+          "description": "Completion date."
+        },
+        "retreadCountBefore": {
+          "type": "number",
+          "description": "Retread counter before this run."
+        },
+        "retreadCountAfter": {
+          "type": "number",
+          "description": "Retread counter after this run."
+        }
+      },
+      "required": ["id", "serialNumber", "retreadVendor", "retreadCost", "retreadDate", "retreadCountBefore", "retreadCountAfter"]
+    },
+    "ServiceSchedule": {
+      "title": "ServiceSchedule",
+      "description": "Planned and upcoming service alerts and due items.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Schedule identifier."
+        },
+        "truckNumber": {
+          "type": "string",
+          "description": "Associated truck."
+        },
+        "serviceType": {
+          "type": "string",
+          "description": "Type of service."
+        },
+        "dueDate": {
+          "type": "string",
+          "format": "date",
+          "description": "Alert calendar target date."
+        },
+        "dueKm": {
+          "type": "number",
+          "description": "Alert kilometer threshold."
+        },
+        "status": {
+          "type": "string",
+          "enum": ["Upcoming", "In Progress", "Completed"],
+          "description": "Booking status."
+        },
+        "createdDate": {
+          "type": "string",
+          "format": "date",
+          "description": "Date planned."
+        },
+        "workshop": {
+          "type": "string",
+          "description": "Workshop suggested."
+        }
+      },
+      "required": ["id", "truckNumber", "serviceType", "status", "createdDate"]
+    },
+    "CentralNotification": {
+      "title": "CentralNotification",
+      "description": "System generated alerts.",
+      "type": "object",
+      "properties": {
+        "vehicleNo": {
+          "type": "string",
+          "description": "Vehicle registration plate number."
+        },
+        "type": {
+          "type": "string",
+          "description": "Notification category/type."
+        },
+        "title": {
+          "type": "string",
+          "description": "Alert title."
+        },
+        "message": {
+          "type": "string",
+          "description": "Detailed alert message."
+        },
+        "priority": {
+          "type": "string",
+          "enum": ["low", "medium", "high"],
+          "description": "Alert priority rating."
+        },
+        "status": {
+          "type": "string",
+          "description": "Status, e.g. unread or read."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Notification creation timestamp."
+        },
+        "read": {
+          "type": "boolean",
+          "description": "Whether the notification has been read."
+        }
+      },
+      "required": ["vehicleNo", "type", "title", "message", "priority", "status", "createdAt", "read"]
+    }
+  },
+  "firestore": {
+    "vehicles": {
+      "schema": "Vehicle",
+      "description": "Primary vehicle fleet tracking repository"
+    },
+    "serviceLogs": {
+      "schema": "ServiceLog",
+      "description": "Consolidated service entries for vehicles"
+    },
+    "tyreMasters": {
+      "schema": "TyreMaster",
+      "description": "Consolidated master stock inventory database for tires"
+    },
+    "tyreHistories": {
+      "schema": "TyreHistory",
+      "description": "Historic registry for tire mountings and unmountings"
+    },
+    "tyreMovements": {
+      "schema": "TyreMovement",
+      "description": "Audit-logs tracking tire relocations and rotations"
+    },
+    "tyreInspections": {
+      "schema": "TyreInspection",
+      "description": "Tire structural and status assessment snapshots"
+    },
+    "tyreExpenses": {
+      "schema": "TyreExpense",
+      "description": "Tire economic records"
+    },
+    "retreadRecords": {
+      "schema": "RetreadRecord",
+      "description": "Tire tread refurbishments logs"
+    },
+    "serviceSchedules": {
+      "schema": "ServiceSchedule",
+      "description": "Maintenance calendar items"
+    },
+    "notifications": {
+      "schema": "CentralNotification",
+      "description": "User actionable system flags"
+    }
+  }
+}
