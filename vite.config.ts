@@ -6,6 +6,7 @@ import {defineConfig} from 'vite';
 export default defineConfig(() => {
   return {
     base: "/SL-Maintenance-Hub/",
+    
     plugins: [react(), tailwindcss()],
     resolve: {
       alias: {
