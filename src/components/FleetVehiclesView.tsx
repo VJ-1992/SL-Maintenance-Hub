@@ -40,6 +40,39 @@ const formatDateToShow = (dateStr?: string) => {
   return dateStr;
 };
 
+interface ServiceReasonTextProps {
+  reason: string;
+}
+
+function ServiceReasonText({ reason }: ServiceReasonTextProps) {
+  const [isTapped, setIsTapped] = useState(false);
+
+  return (
+    <div className="relative group/tooltip inline-block max-w-full">
+      {/* Tap/Hover trigger */}
+      <div 
+        onClick={(e) => {
+          e.stopPropagation(); // Prevent card tap / toggle behavior
+          setIsTapped(!isTapped);
+        }}
+        className="cursor-pointer sm:cursor-default"
+      >
+        <span className={`text-[10px] text-slate-400 font-bold block sm:max-w-[180px] lg:max-w-[220px] transition-all duration-200 ${
+          isTapped ? 'whitespace-normal break-words' : 'truncate'
+        }`}>
+          {reason}
+        </span>
+      </div>
+
+      {/* Elegant Desktop Tooltip on hover */}
+      <div className="pointer-events-none opacity-0 group-hover/tooltip:opacity-100 transition-all duration-200 absolute z-50 bottom-full right-0 mb-2 p-2.5 bg-slate-900 text-white text-[10px] rounded-lg shadow-lg max-w-[240px] whitespace-normal break-words hidden sm:block">
+        {reason}
+        <div className="absolute top-full right-4 -mt-1 border-4 border-transparent border-t-slate-900"></div>
+      </div>
+    </div>
+  );
+}
+
 interface FleetVehiclesViewProps {
   vehicles: Vehicle[];
   setVehicles: React.Dispatch<React.SetStateAction<Vehicle[]>>;
@@ -467,39 +500,36 @@ export default function FleetVehiclesView({
               >
                 {/* Card Top Branding & Health */}
                 <div className="p-4 sm:p-6 border-b border-slate-150/40 space-y-4">
-                  <div className="flex flex-row items-start justify-between gap-3 w-full min-w-0">
+                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 w-full min-w-0">
                     <div className="min-w-0 flex-1">
                       <h3 className="text-xl font-bold font-mono tracking-tight text-slate-900 truncate">
                         {vehicle.truckNumber}
                       </h3>
                       <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1.5 text-xs text-slate-500 font-semibold">
-                        <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded whitespace-nowrap shrink-0 leading-normal ${
+                        <span className={`text-[10px] font-extrabold uppercase tracking-widest px-2.5 py-1 rounded-md whitespace-nowrap shrink-0 leading-none inline-flex items-center border ${
                           vehicle.manufacturer === VehicleManufacturer.TATA 
-                            ? 'bg-blue-500/10 text-blue-600' 
-                            : 'bg-amber-500/10 text-amber-600'
+                            ? 'bg-blue-50/80 text-blue-700 border-blue-200/50' 
+                            : 'bg-amber-50/80 text-amber-700 border-amber-200/50'
                         }`}>
                           {vehicle.manufacturer}
                         </span>
                         <span className="text-slate-300 select-none">|</span>
-                        <span className="whitespace-nowrap shrink-0">{vehicle.tyresCount} Tyres</span>
-                        {vehicle.hasLiftAxle && (
+                        <span className="whitespace-nowrap shrink-0 font-medium text-slate-600 text-xs">
+                          {vehicle.tyresCount} Tyres
+                        </span>
+                        {vehicle.hasLiftAxle === true && (
                           <>
                             <span className="text-slate-300 select-none">|</span>
-                            <span className="text-[10px] bg-purple-500/10 text-purple-600 font-bold px-1.5 py-0.5 rounded whitespace-nowrap shrink-0 uppercase tracking-wider leading-normal">
+                            <span className="text-[10px] bg-purple-50 text-purple-700 border border-purple-200/50 font-bold px-2 py-1 rounded-md whitespace-nowrap shrink-0 uppercase tracking-widest leading-none inline-flex items-center">
                               Lift Axle
                             </span>
                           </>
                         )}
                       </div>
-                      
-                      {/* Service status text placement on mobile if not enough space */}
-                      <p className="text-[10px] text-slate-400 font-bold uppercase mt-2 block sm:hidden">
-                        {serviceSummary.reason}
-                      </p>
                     </div>
-
-                    {/* Alerts Status Badge - Dynamic Level indicator (Point 4) */}
-                    <div className="flex flex-col items-end gap-1 shrink-0 text-right">
+                    
+                    {/* Alerts Status Badge & Service Status Reason Container */}
+                    <div className="flex flex-row items-center sm:flex-col sm:items-end gap-2 sm:gap-1 shrink-0 mt-2 sm:mt-0 w-full sm:w-auto">
                       {serviceSummary.level === 'red' && (
                         <span className="bg-red-500 text-white px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase flex items-center gap-1 animate-pulse whitespace-nowrap shrink-0">
                           <AlertTriangle size={10} />
@@ -523,7 +553,8 @@ export default function FleetVehiclesView({
                           Current
                         </span>
                       )}
-                      <span className="text-[10px] text-slate-400 font-bold max-w-[180px] truncate hidden sm:block">{serviceSummary.reason}</span>
+                      
+                      <ServiceReasonText reason={serviceSummary.reason} />
                     </div>
                   </div>
 
