@@ -92,6 +92,12 @@ export default function DashboardView({
     if (v.permitExpiry && v.permitExpiry < todayStr) {
       expiredVehiclesList.push({ truckNumber: v.truckNumber, document: 'National Permit', expDate: v.permitExpiry });
     }
+    if (v.eWayBillExpiry && v.eWayBillExpiry < todayStr) {
+      expiredVehiclesList.push({ truckNumber: v.truckNumber, document: 'E-Way Bill', expDate: v.eWayBillExpiry });
+    }
+    if (v.pucExpiry && v.pucExpiry < todayStr) {
+      expiredVehiclesList.push({ truckNumber: v.truckNumber, document: 'PUC Certificate', expDate: v.pucExpiry });
+    }
   });
 
   // 5. MONTHLY MAINTENANCE COST
@@ -269,9 +275,12 @@ export default function DashboardView({
                         <span className="font-bold text-blue-600 uppercase">{schedule.serviceType}</span>
                         <p className="text-[11px] text-slate-400 font-medium mt-0.5">Workshop: {schedule.workshop || 'N/A'}</p>
                       </div>
-                      <div className="text-[10px] text-slate-400 font-mono flex items-center justify-between border-t border-slate-200/60 pt-2">
+                      <div className="text-[10px] text-slate-400 font-mono flex flex-col sm:flex-row sm:items-center sm:justify-between border-t border-slate-200/60 pt-2 gap-1">
                         <span>Due: {schedule.dueDate || 'Odo Limit'}</span>
-                        <span>Supervisor Name: {veh?.supervisorName || 'N/A'}</span>
+                        <div className="flex flex-col sm:items-end">
+                          <span>Supervisor: {veh?.supervisorName || 'N/A'}</span>
+                          <span>Foreman: {veh?.foremanName || 'N/A'}</span>
+                        </div>
                       </div>
                     </div>
                   );
@@ -381,28 +390,34 @@ export default function DashboardView({
               >
                 Go to Logs
               </button>
-            </div>
-
-            <div className="space-y-4">
-              {recentLogs.map(log => (
-                <div key={log.id} className="relative pl-4 border-l-2 border-slate-200 py-1 space-y-1">
-                  <div className="flex justify-between items-start text-xs">
-                    <div>
-                      <span className="font-bold text-slate-900 font-mono mr-2">{log.truckNumber}</span>
-                      <span className="text-slate-400 font-mono">•</span>
-                      <span className="text-blue-600 font-bold ml-2">{log.type}</span>
+            </div>            <div className="space-y-4">
+              {recentLogs.map(log => {
+                const associatedVehicle = vehicles.find(v => v.truckNumber === log.truckNumber);
+                const foreman = associatedVehicle?.foremanName || 'N/A';
+                return (
+                  <div key={log.id} className="relative pl-4 border-l-2 border-slate-200 py-1 space-y-1">
+                    <div className="flex justify-between items-start text-xs">
+                      <div>
+                        <span className="font-bold text-slate-900 font-mono mr-2">{log.truckNumber}</span>
+                        <span className="text-slate-400 font-mono">•</span>
+                        <span className="text-blue-600 font-bold ml-2">{log.type}</span>
+                      </div>
+                      <span className="bg-slate-100 text-slate-800 font-mono font-bold px-2 py-0.5 rounded-full text-[10px]">
+                        ₹{log.cost.toLocaleString()}
+                      </span>
                     </div>
-                    <span className="bg-slate-100 text-slate-800 font-mono font-bold px-2 py-0.5 rounded-full text-[10px]">
-                      ₹{log.cost.toLocaleString()}
-                    </span>
+                    <p className="text-[11px] text-slate-550 leading-normal">{log.description}</p>
+                    <div className="text-[9.5px] text-slate-400 font-mono uppercase flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
+                      <div>
+                        <span>Supervisor: {log.supervisorName}</span>
+                        <span className="mx-2 hidden sm:inline">|</span>
+                        <span>Foreman: {foreman}</span>
+                      </div>
+                      <span>Date: {formatDateToShow(log.date)}</span>
+                    </div>
                   </div>
-                  <p className="text-[11px] text-slate-500 leading-normal">{log.description}</p>
-                  <div className="text-[9.5px] text-slate-400 font-mono uppercase flex items-center justify-between">
-                    <span>Supervisor Name: {log.supervisorName}</span>
-                    <span>Date: {formatDateToShow(log.date)}</span>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 

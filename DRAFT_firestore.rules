@@ -39,7 +39,8 @@ service cloud.firestore {
         && data.supervisorName is string && data.supervisorName.size() > 0 && data.supervisorName.size() <= 100
         && data.driverName is string && data.driverName.size() <= 100
         && data.currentLocation is string && data.currentLocation.size() <= 200
-        && data.lastUpdated is string;
+        && data.lastUpdated is string
+        && (!data.keys().hasAny(['foremanName']) || (data.foremanName is string && data.foremanName.size() <= 100));
     }
 
     function isValidServiceLog(data) {

@@ -38,15 +38,18 @@ export default function Sidebar({
 
   return (
     <>
-      {/* Mobile Toggle Button */}
-      <div className="md:hidden fixed top-4 left-4 z-50">
-        <button
-          onClick={() => setIsOpen(!isOpen)}
-          className="p-2 bg-slate-900 text-white rounded-lg shadow-lg hover:bg-slate-800 transition"
-        >
-          {isOpen ? <X size={20} /> : <Menu size={20} />}
-        </button>
-      </div>
+      {/* Mobile Close Button when Sidebar is Open */}
+      {isOpen && (
+        <div className="md:hidden fixed top-4 right-4 z-50">
+          <button
+            onClick={() => setIsOpen(false)}
+            className="p-2.5 bg-slate-900 text-white rounded-xl shadow-lg hover:bg-slate-800 transition duration-150 flex items-center justify-center border border-slate-850"
+            aria-label="Close menu"
+          >
+            <X size={20} />
+          </button>
+        </div>
+      )}
 
       {/* Sidebar Container */}
       <aside

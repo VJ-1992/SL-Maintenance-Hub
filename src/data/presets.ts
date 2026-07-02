@@ -1,54 +1,59 @@
 import { Vehicle, VehicleManufacturer, Tyre, TyreStatus, ServiceLog, ServiceType, TyreMaster, TyreMasterStatus, TyreHistory, TyreMovement, TyreInspection, TyreExpense, RetreadRecord, ServiceSchedule, CentralNotification } from '../types';
 
 // Helper to generate a default tyre list for a given vehicle template
-export function generateDefaultTyres(manufacturer: VehicleManufacturer): Tyre[] {
+export function generateDefaultTyres(
+  manufacturer: VehicleManufacturer,
+  totalTyres: number = 14,
+  hasLiftAxle: boolean = false
+): Tyre[] {
   const tyres: Tyre[] = [];
   const brandList = ["MRF Supermiler", "Apollo EnduMax", "JK Tyre JetSteel", "CEAT Mile XL"];
 
-  if (manufacturer === VehicleManufacturer.TATA) {
+  if (totalTyres === 14) {
     // 14 Tyres layout
     // Axle 1: Steer (2 tyres)
-    tyres.push(createTyre("Axle1_L", "Steer Left (A1)", "A1-L-724", brandList[0], 115, 13));
-    tyres.push(createTyre("Axle1_R", "Steer Right (A1)", "A1-R-812", brandList[0], 118, 14));
+    tyres.push(createTyre("Axle1_L", "Steer Left (A1)", `${manufacturer === VehicleManufacturer.TATA ? 'A1' : 'AL1'}-L-724`, brandList[0], 115, 13));
+    tyres.push(createTyre("Axle1_R", "Steer Right (A1)", `${manufacturer === VehicleManufacturer.TATA ? 'A1' : 'AL1'}-R-812`, brandList[0], 118, 14));
 
-    // Axle 2: Lift Axle (4 dually tyres)
-    tyres.push(createTyre("Axle2_LO", "Lift Axle Left Outer (A2)", "A2-LO-009", brandList[1], 112, 11));
-    tyres.push(createTyre("Axle2_LI", "Lift Axle Left Inner (A2)", "A2-LI-010", brandList[1], 112, 12));
-    tyres.push(createTyre("Axle2_RI", "Lift Axle Right Inner (A2)", "A2-RI-011", brandList[1], 110, 11));
-    tyres.push(createTyre("Axle2_RO", "Lift Axle Right Outer (A2)", "A2-RO-012", brandList[1], 114, 12));
+    // Axle 2: Lift/Mid Axle (4 dually tyres)
+    const axle2Label = hasLiftAxle ? "Lift Axle" : "Mid Axle";
+    tyres.push(createTyre("Axle2_LO", `${axle2Label} Left Outer (A2)`, `${manufacturer === VehicleManufacturer.TATA ? 'A2' : 'AL2'}-LO-009`, brandList[1], 112, 11));
+    tyres.push(createTyre("Axle2_LI", `${axle2Label} Left Inner (A2)`, `${manufacturer === VehicleManufacturer.TATA ? 'A2' : 'AL2'}-LI-010`, brandList[1], 112, 12));
+    tyres.push(createTyre("Axle2_RI", `${axle2Label} Right Inner (A2)`, `${manufacturer === VehicleManufacturer.TATA ? 'A2' : 'AL2'}-RI-011`, brandList[1], 110, 11));
+    tyres.push(createTyre("Axle2_RO", `${axle2Label} Right Outer (A2)`, `${manufacturer === VehicleManufacturer.TATA ? 'A2' : 'AL2'}-RO-012`, brandList[1], 114, 12));
 
     // Axle 3: Drive Axle 1 (4 dually tyres)
-    tyres.push(createTyre("Axle3_LO", "Drive 1 Left Outer (A3)", "A3-LO-561", brandList[2], 115, 9));
-    tyres.push(createTyre("Axle3_LI", "Drive 1 Left Inner (A3)", "A3-LI-562", brandList[2], 116, 8));
-    tyres.push(createTyre("Axle3_RI", "Drive 1 Right Inner (A3)", "A3-RI-563", brandList[2], 98, 9)); // Low pressure warning!
-    tyres.push(createTyre("Axle3_RO", "Drive 1 Right Outer (A3)", "A3-RO-564", brandList[2], 115, 10));
+    tyres.push(createTyre("Axle3_LO", "Drive 1 Left Outer (A3)", `${manufacturer === VehicleManufacturer.TATA ? 'A3' : 'AL3'}-LO-561`, brandList[2], 115, 9));
+    tyres.push(createTyre("Axle3_LI", "Drive 1 Left Inner (A3)", `${manufacturer === VehicleManufacturer.TATA ? 'A3' : 'AL3'}-LI-562`, brandList[2], 116, 8));
+    tyres.push(createTyre("Axle3_RI", "Drive 1 Right Inner (A3)", `${manufacturer === VehicleManufacturer.TATA ? 'A3' : 'AL3'}-RI-563`, brandList[2], 98, 9)); // Low pressure warning!
+    tyres.push(createTyre("Axle3_RO", "Drive 1 Right Outer (A3)", `${manufacturer === VehicleManufacturer.TATA ? 'A3' : 'AL3'}-RO-564`, brandList[2], 115, 10));
 
     // Axle 4: Drive Axle 2 (4 dually tyres)
-    tyres.push(createTyre("Axle4_LO", "Drive 2 Left Outer (A4)", "A4-LO-901", brandList[3], 113, 4));  // Alert: Worn-out
-    tyres.push(createTyre("Axle4_LI", "Drive 2 Left Inner (A4)", "A4-LI-902", brandList[3], 112, 5));
-    tyres.push(createTyre("Axle4_RI", "Drive 2 Right Inner (A4)", "A4-RI-903", brandList[3], 114, 5));
-    tyres.push(createTyre("Axle4_RO", "Drive 2 Right Outer (A4)", "A4-RO-904", brandList[3], 114, 3.5)); // Alert: Worn-out
+    tyres.push(createTyre("Axle4_LO", "Drive 2 Left Outer (A4)", `${manufacturer === VehicleManufacturer.TATA ? 'A4' : 'AL4'}-LO-901`, brandList[3], 113, 4));  // Alert: Worn-out
+    tyres.push(createTyre("Axle4_LI", "Drive 2 Left Inner (A4)", `${manufacturer === VehicleManufacturer.TATA ? 'A4' : 'AL4'}-LI-902`, brandList[3], 112, 5));
+    tyres.push(createTyre("Axle4_RI", "Drive 2 Right Inner (A4)", `${manufacturer === VehicleManufacturer.TATA ? 'A4' : 'AL4'}-RI-903`, brandList[3], 114, 5));
+    tyres.push(createTyre("Axle4_RO", "Drive 2 Right Outer (A4)", `${manufacturer === VehicleManufacturer.TATA ? 'A4' : 'AL4'}-RO-904`, brandList[3], 114, 3.5)); // Alert: Worn-out
   } else {
-    // Ashok Leyland layout: 12 Tyres
+    // 12 Tyres layout
     // Axle 1: Steer (2 tyres)
-    tyres.push(createTyre("Axle1_L", "Steer Left (A1)", "AL-A1L-11", brandList[1], 116, 12));
-    tyres.push(createTyre("Axle1_R", "Steer Right (A1)", "AL-A1R-12", brandList[1], 115, 11));
+    tyres.push(createTyre("Axle1_L", "Steer Left (A1)", `${manufacturer === VehicleManufacturer.TATA ? 'T' : 'AL'}-A1L-11`, brandList[1], 116, 12));
+    tyres.push(createTyre("Axle1_R", "Steer Right (A1)", `${manufacturer === VehicleManufacturer.TATA ? 'T' : 'AL'}-A1R-12`, brandList[1], 115, 11));
 
     // Axle 2: Drive Axle 1 (4 dually tyres)
-    tyres.push(createTyre("Axle2_LO", "Drive 1 Left Outer (A2)", "AL-A2LO-31", brandList[0], 110, 10));
-    tyres.push(createTyre("Axle2_LI", "Drive 1 Left Inner (A2)", "AL-A2LI-32", brandList[0], 111, 10));
-    tyres.push(createTyre("Axle2_RI", "Drive 1 Right Inner (A2)", "AL-A2RI-33", brandList[0], 110, 9));
-    tyres.push(createTyre("Axle2_RO", "Drive 1 Right Outer (A2)", "AL-A2RO-34", brandList[0], 112, 9));
+    tyres.push(createTyre("Axle2_LO", "Drive 1 Left Outer (A2)", `${manufacturer === VehicleManufacturer.TATA ? 'T' : 'AL'}-A2LO-31`, brandList[0], 110, 10));
+    tyres.push(createTyre("Axle2_LI", "Drive 1 Left Inner (A2)", `${manufacturer === VehicleManufacturer.TATA ? 'T' : 'AL'}-A2LI-32`, brandList[0], 111, 10));
+    tyres.push(createTyre("Axle2_RI", "Drive 1 Right Inner (A2)", `${manufacturer === VehicleManufacturer.TATA ? 'T' : 'AL'}-A2RI-33`, brandList[0], 110, 9));
+    tyres.push(createTyre("Axle2_RO", "Drive 1 Right Outer (A2)", `${manufacturer === VehicleManufacturer.TATA ? 'T' : 'AL'}-A2RO-34`, brandList[0], 112, 9));
 
     // Axle 3: Drive Axle 2 (4 dually tyres)
-    tyres.push(createTyre("Axle3_LO", "Drive 2 Left Outer (A3)", "AL-A3LO-41", brandList[2], 114, 8));
-    tyres.push(createTyre("Axle3_LI", "Drive 2 Left Inner (A3)", "AL-A3LI-42", brandList[2], 115, 7));
-    tyres.push(createTyre("Axle3_RI", "Drive 2 Right Inner (A3)", "AL-A3RI-43", brandList[2], 85, 8));  // Alert: Low pressure
-    tyres.push(createTyre("Axle3_RO", "Drive 2 Right Outer (A3)", "AL-A3RO-44", brandList[2], 114, 7));
+    tyres.push(createTyre("Axle3_LO", "Drive 2 Left Outer (A3)", `${manufacturer === VehicleManufacturer.TATA ? 'T' : 'AL'}-A3LO-41`, brandList[2], 114, 8));
+    tyres.push(createTyre("Axle3_LI", "Drive 2 Left Inner (A3)", `${manufacturer === VehicleManufacturer.TATA ? 'T' : 'AL'}-A3LI-42`, brandList[2], 115, 7));
+    tyres.push(createTyre("Axle3_RI", "Drive 2 Right Inner (A3)", `${manufacturer === VehicleManufacturer.TATA ? 'T' : 'AL'}-A3RI-43`, brandList[2], 85, 8));  // Alert: Low pressure
+    tyres.push(createTyre("Axle3_RO", "Drive 2 Right Outer (A3)", `${manufacturer === VehicleManufacturer.TATA ? 'T' : 'AL'}-A3RO-44`, brandList[2], 114, 7));
 
     // Axle 4: Rear Tag Axle (2 single tyres on outer sides)
-    tyres.push(createTyre("Axle4_L", "Rear Left (A4)", "AL-A4L-99", brandList[3], 116, 13));
-    tyres.push(createTyre("Axle4_R", "Rear Right (A4)", "AL-A4R-100", brandList[3], 115, 12));
+    tyres.push(createTyre("Axle4_L", "Rear Left (A4)", `${manufacturer === VehicleManufacturer.TATA ? 'T' : 'AL'}-A4L-99`, brandList[3], 116, 13));
+    tyres.push(createTyre("Axle4_R", "Rear Right (A4)", `${manufacturer === VehicleManufacturer.TATA ? 'T' : 'AL'}-A4R-100`, brandList[3], 115, 12));
   }
 
   return tyres;
@@ -80,6 +85,7 @@ export const PRESET_VEHICLES: Vehicle[] = [
     tyresCount: 14,
     hasLiftAxle: true,
     supervisorName: "Mustak",
+    foremanName: "Ramesh",
     driverName: "Rakesh Yadav",
     mobileNumber: "+91 98290 12345",
     currentLocation: "Jaipur, RJ",
@@ -88,6 +94,8 @@ export const PRESET_VEHICLES: Vehicle[] = [
     insuranceExpiry: "2026-07-05", // Due in 12 days
     fitnessExpiry: "2026-08-15",   // Due in future
     permitExpiry: "2026-06-10",     // Overdue by 13 days
+    eWayBillExpiry: "2026-07-15",
+    pucExpiry: "2026-06-18",        // Expired recently
     currentTripFrom: "Panipat",
     currentTripTo: "Chennai",
     tripStartDate: "2026-06-24",
@@ -100,6 +108,7 @@ export const PRESET_VEHICLES: Vehicle[] = [
     tyresCount: 12,
     hasLiftAxle: false,
     supervisorName: "Sachin",
+    foremanName: "Suresh",
     driverName: "Karan Johar",
     mobileNumber: "+91 94140 54321",
     currentLocation: "Delhi NCR",
@@ -108,6 +117,8 @@ export const PRESET_VEHICLES: Vehicle[] = [
     insuranceExpiry: "2026-06-15", // Overdue by 8 days
     fitnessExpiry: "2026-06-28",   // Due soon (within 5 days)
     permitExpiry: "2026-10-30",     // Far in future
+    eWayBillExpiry: "2026-06-20",   // Expired
+    pucExpiry: "2026-08-25",        // Future expiry
     currentTripFrom: "Jaipur",
     currentTripTo: "Mumbai",
     tripStartDate: "2026-06-25",
@@ -621,18 +632,36 @@ export const INITIAL_TYRES: TyreMaster[] = [
 
 export const INITIAL_TYRE_HISTORY: TyreHistory[] = [
   {
-    id: "TH_001",
+    historyId: "TH_001",
+    vehicleNo: "RJ14GR0952",
     serialNumber: "A1-L-724",
+    movementType: "Tyre Installed",
+    movementDate: "2026-06-19",
+    odometer: 129400,
+    supervisorName: "Irshad",
+    remarks: "Fitted as steer left tyre",
+    newStatus: "Active",
+    // Backwards compatibility
+    id: "TH_001",
     truckNumber: "RJ14GR0952",
     positionId: "Axle1_L",
     positionName: "Steer Left (A1)",
     installedDate: "2026-06-19",
-    kmAtInstallation: 129400,
-    supervisorName: "Irshad"
+    kmAtInstallation: 129400
   },
   {
-    id: "TH_002",
+    historyId: "TH_002",
+    vehicleNo: "RJ14GR0952",
     serialNumber: "PREV-724",
+    movementType: "Tyre Removed",
+    movementDate: "2026-06-19",
+    odometer: 104500,
+    supervisorName: "Irshad",
+    remarks: "Tread fully worn out. Replaced with serial A1-L-724.",
+    oldStatus: "Active",
+    newStatus: "Scrap",
+    // Backwards compatibility
+    id: "TH_002",
     truckNumber: "RJ14GR0952",
     positionId: "Axle1_L",
     positionName: "Steer Left (A1)",
@@ -641,8 +670,7 @@ export const INITIAL_TYRE_HISTORY: TyreHistory[] = [
     kmAtInstallation: 0,
     kmAtRemoval: 104500,
     totalKmRun: 104500,
-    removalReason: "Tread fully worn out. Replaced with serial A1-L-724.",
-    supervisorName: "Irshad"
+    removalReason: "Tread fully worn out. Replaced with serial A1-L-724."
   }
 ];
 
@@ -655,7 +683,17 @@ export const INITIAL_TYRE_MOVEMENTS: TyreMovement[] = [
     sourcePosition: "Spare Rack B",
     destinationPosition: "Axle2_LO",
     date: "2026-05-10",
-    supervisorName: "Mustak"
+    supervisorName: "Mustak",
+
+    movementId: "TM_001",
+    tyreNumber: "SP-9012",
+    vehicleFrom: "Spare Yard",
+    vehicleTo: "RJ14GR0952",
+    positionFrom: "Spare Rack B",
+    positionTo: "Axle2_LO",
+    movementDate: "2026-05-10",
+    odometer: 0,
+    reason: "Routine replacement / spare rotation"
   }
 ];
 

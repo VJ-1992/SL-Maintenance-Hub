@@ -363,6 +363,7 @@ export default function ReportsView({
                   <th className="p-3">Vehicle Number</th>
                   <th className="p-3">Manufacturer</th>
                   <th className="p-3">Supervisor Name</th>
+                  <th className="p-3">Foreman Name</th>
                   <th className="p-3 text-right">Service Logs Count</th>
                   <th className="p-3 text-right">Odometer Mileage</th>
                   <th className="p-3 text-right">Total Maintenance Cost</th>
@@ -378,6 +379,7 @@ export default function ReportsView({
                       <td className="p-3 font-bold text-slate-950">{v.truckNumber}</td>
                       <td className="p-3 font-sans">{v.manufacturer}</td>
                       <td className="p-3 font-sans font-semibold">{v.supervisorName}</td>
+                      <td className="p-3 font-sans font-semibold">{v.foremanName || 'N/A'}</td>
                       <td className="p-3 text-right">{data.logCount} entries</td>
                       <td className="p-3 text-right">{data.maxOdometer.toLocaleString()} KM</td>
                       <td className="p-3 text-right font-bold">₹{data.totalCost.toLocaleString("en-IN")}</td>
@@ -577,6 +579,122 @@ export default function ReportsView({
 
       </div>
 
+      {/* RTO Regulatory Document Compliance & Expiring Documents Report */}
+      <div className="bg-white p-6 rounded border border-slate-200 shadow-sm space-y-4">
+        <div className="flex justify-between items-center pb-2 border-b border-slate-100">
+          <div className="flex items-center space-x-2">
+            <ShieldCheck className="text-emerald-600 animate-pulse" size={18} />
+            <h3 className="font-bold text-slate-900 text-xs uppercase tracking-wider">
+              RTO Compliance & Expiring Documents Report
+            </h3>
+          </div>
+          <span className="text-xs bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded font-bold font-mono">
+            5 Document Types Tracked
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-center">
+            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Active Fleet Vehicles</p>
+            <p className="text-lg font-bold text-slate-800 font-mono mt-0.5">{vehicles.length}</p>
+          </div>
+          <div className="p-3 bg-red-50 border border-red-100 rounded-xl text-center">
+            <p className="text-[9px] font-bold text-red-500 uppercase tracking-wider">Expired Documents</p>
+            <p className="text-lg font-bold text-red-700 font-mono mt-0.5">
+              {(() => {
+                const todayStr = new Date().toISOString().split('T')[0];
+                let count = 0;
+                vehicles.forEach(v => {
+                  if (v.insuranceExpiry && v.insuranceExpiry < todayStr) count++;
+                  if (v.fitnessExpiry && v.fitnessExpiry < todayStr) count++;
+                  if (v.permitExpiry && v.permitExpiry < todayStr) count++;
+                  if (v.eWayBillExpiry && v.eWayBillExpiry < todayStr) count++;
+                  if (v.pucExpiry && v.pucExpiry < todayStr) count++;
+                });
+                return count;
+              })()}
+            </p>
+          </div>
+          <div className="p-3 bg-amber-50 border border-amber-100 rounded-xl text-center">
+            <p className="text-[9px] font-bold text-amber-500 uppercase tracking-wider">Expiring in 30 Days</p>
+            <p className="text-lg font-bold text-amber-700 font-mono mt-0.5">
+              {(() => {
+                const today = new Date();
+                const todayStr = today.toISOString().split('T')[0];
+                const thirtyDaysLater = new Date(Date.now() + 1000 * 60 * 60 * 24 * 30).toISOString().split('T')[0];
+                let count = 0;
+                vehicles.forEach(v => {
+                  const check = (expiry: string | undefined) => {
+                    if (expiry && expiry >= todayStr && expiry <= thirtyDaysLater) {
+                      count++;
+                    }
+                  };
+                  check(v.insuranceExpiry);
+                  check(v.fitnessExpiry);
+                  check(v.permitExpiry);
+                  check(v.eWayBillExpiry);
+                  check(v.pucExpiry);
+                });
+                return count;
+              })()}
+            </p>
+          </div>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse text-xs min-w-[700px]">
+            <thead>
+              <tr className="border-b border-slate-200 text-slate-400 font-bold uppercase text-[10px] bg-slate-50">
+                <th className="p-3">Vehicle No</th>
+                <th className="p-3">Insurance</th>
+                <th className="p-3">Fitness Cert</th>
+                <th className="p-3">National Permit</th>
+                <th className="p-3">E-Way Bill</th>
+                <th className="p-3">PUC Status</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
+              {vehicles.map(v => {
+                const todayStr = new Date().toISOString().split('T')[0];
+                const renderExpiryCell = (expiry: string | undefined) => {
+                  if (!expiry) {
+                    return <span className="text-slate-400 italic">--</span>;
+                  }
+                  const isExpired = expiry < todayStr;
+                  const expTime = new Date(expiry).getTime();
+                  const diffDays = Math.ceil((expTime - Date.now()) / (1000 * 60 * 60 * 24));
+                  const isExpiringSoon = !isExpired && diffDays <= 30;
+
+                  return (
+                    <div>
+                      <span className={`font-mono font-bold ${isExpired ? 'text-red-600' : isExpiringSoon ? 'text-amber-600' : 'text-slate-800'}`}>
+                        {expiry}
+                      </span>
+                      {isExpired ? (
+                        <span className="ml-1.5 px-1 py-0.2 bg-red-100 text-red-700 text-[8px] font-bold rounded uppercase">Expired</span>
+                      ) : isExpiringSoon ? (
+                        <span className="ml-1.5 px-1 py-0.2 bg-amber-100 text-amber-700 text-[8px] font-bold rounded uppercase">Due {diffDays}d</span>
+                      ) : null}
+                    </div>
+                  );
+                };
+
+                return (
+                  <tr key={v.truckNumber} className="hover:bg-slate-50">
+                    <td className="p-3 font-bold text-slate-900">{v.truckNumber}</td>
+                    <td className="p-3">{renderExpiryCell(v.insuranceExpiry)}</td>
+                    <td className="p-3">{renderExpiryCell(v.fitnessExpiry)}</td>
+                    <td className="p-3">{renderExpiryCell(v.permitExpiry)}</td>
+                    <td className="p-3">{renderExpiryCell(v.eWayBillExpiry)}</td>
+                    <td className="p-3">{renderExpiryCell(v.pucExpiry)}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
       {/* Bento Table: Tyres Requiring Replacement Audits */}
       <div className="bg-white p-6 rounded border border-slate-200 shadow-sm space-y-4">
         <div className="flex justify-between items-center pb-2 border-b border-slate-100">
@@ -663,7 +781,7 @@ export default function ReportsView({
                   Generating {modalType === 'excel' ? 'Spreadsheet' : 'PDF Document'}...
                 </h4>
                 <p className="text-xs text-slate-400">
-                  compiling fleet statistics, brand financials, vehicle tyre-wise operating costs, and active audit markers...
+                  compiling fleet statistics with supervisor & foreman assignments, brand financials, vehicle tyre-wise operating costs, RTO regulatory renewals (Insurance, Fitness, Permit, E-Way Bill, PUC), and active compliance audit markers...
                 </p>
               </div>
             ) : null}

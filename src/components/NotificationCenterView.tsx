@@ -39,6 +39,8 @@ export default function NotificationCenterView({
     'Insurance Expiry',
     'Fitness Expiry',
     'Permit Expiry',
+    'E-Way Bill Expiry',
+    'PUC Expiry',
     'Tyre Replacement Due',
     'Low Tread Depth',
     'Low Air Pressure',
@@ -75,6 +77,8 @@ export default function NotificationCenterView({
       case 'Insurance Expiry':
       case 'Fitness Expiry':
       case 'Permit Expiry':
+      case 'E-Way Bill Expiry':
+      case 'PUC Expiry':
         return <FileText size={18} className={className} />;
       case 'Tyre Replacement Due':
       case 'Low Tread Depth':

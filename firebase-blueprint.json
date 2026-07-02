@@ -26,6 +26,10 @@
           "type": "string",
           "description": "Responsible supervisor name."
         },
+        "foremanName": {
+          "type": "string",
+          "description": "Responsible foreman name."
+        },
         "driverName": {
           "type": "string",
           "description": "Name of primary driver."
@@ -58,6 +62,16 @@
           "format": "date",
           "description": "Optional permit expiry date."
         },
+        "eWayBillExpiry": {
+          "type": "string",
+          "format": "date",
+          "description": "Optional E-Way Bill expiry date."
+        },
+        "pucExpiry": {
+          "type": "string",
+          "format": "date",
+          "description": "Optional PUC expiry date."
+        },
         "currentTripFrom": {
           "type": "string",
           "description": "Source of current trip."
@@ -79,6 +93,18 @@
         "partyName": {
           "type": "string",
           "description": "Client party name for the trip."
+        },
+        "vehicleTemplate": {
+          "type": "string",
+          "description": "Selected vehicle model template name."
+        },
+        "wheelConfiguration": {
+          "type": "string",
+          "description": "Configuration of wheels (e.g. 12-Wheelers or 14-Wheelers)."
+        },
+        "totalTyres": {
+          "type": "number",
+          "description": "Total number of tyres on the vehicle."
         }
       },
       "required": ["truckNumber", "manufacturer", "tyresCount", "hasLiftAxle", "supervisorName", "driverName", "currentLocation", "lastUpdated"]
@@ -251,61 +277,65 @@
     },
     "TyreHistory": {
       "title": "TyreHistory",
-      "description": "Lifecycle mounting and removal history of individual tyres.",
+      "description": "Lifecycle history records tracking installs, removals, swaps, retreads, and scraps.",
       "type": "object",
       "properties": {
-        "id": {
+        "historyId": {
           "type": "string",
           "description": "Unique history entry ID."
         },
+        "vehicleNo": {
+          "type": "string",
+          "description": "Vehicle on which the action occurred."
+        },
+        "tyreNumber": {
+          "type": "string",
+          "description": "Manufacturer tyre number reference if available."
+        },
         "serialNumber": {
           "type": "string",
-          "description": "Tyre identifier."
+          "description": "Tyre serial identifier."
         },
-        "truckNumber": {
+        "oldPosition": {
           "type": "string",
-          "description": "Vehicle on which the tyre was mounted."
+          "description": "Original position before movement."
         },
-        "positionId": {
+        "newPosition": {
           "type": "string",
-          "description": "Wheel chassis position code."
+          "description": "Destination position after movement."
         },
-        "positionName": {
+        "movementType": {
           "type": "string",
-          "description": "User friendly position name."
+          "enum": ["Tyre Installed", "Tyre Removed", "Tyre Replaced", "Tyre Swapped", "Tyre Sent for Retread", "Tyre Returned from Retread", "Tyre Scrapped"],
+          "description": "Type of tyre action."
         },
-        "installedDate": {
-          "type": "string",
-          "format": "date",
-          "description": "Date tyre was mounted on vehicle."
-        },
-        "removedDate": {
+        "movementDate": {
           "type": "string",
           "format": "date",
-          "description": "Date tyre was unmounted."
+          "description": "Date movement action occurred."
         },
-        "kmAtInstallation": {
+        "odometer": {
           "type": "number",
-          "description": "Vehicle odometer reading during mounting."
-        },
-        "kmAtRemoval": {
-          "type": "number",
-          "description": "Vehicle odometer reading during removal."
-        },
-        "totalKmRun": {
-          "type": "number",
-          "description": "Calculated running KM of tyre during this phase."
-        },
-        "removalReason": {
-          "type": "string",
-          "description": "Reason for unmounting."
+          "description": "Odometer KM during action."
         },
         "supervisorName": {
           "type": "string",
-          "description": "Supervisor executing removal."
+          "description": "Supervisor executing action."
+        },
+        "remarks": {
+          "type": "string",
+          "description": "Supervisor remarks."
+        },
+        "oldStatus": {
+          "type": "string",
+          "description": "Original status of the tyre."
+        },
+        "newStatus": {
+          "type": "string",
+          "description": "New status of the tyre after action."
         }
       },
-      "required": ["id", "serialNumber", "truckNumber", "positionId", "positionName", "installedDate", "kmAtInstallation", "supervisorName"]
+      "required": ["historyId", "vehicleNo", "serialNumber", "movementType", "movementDate", "odometer", "supervisorName"]
     },
     "TyreMovement": {
       "title": "TyreMovement",
@@ -338,15 +368,68 @@
         },
         "date": {
           "type": "string",
-          "format": "date-time",
           "description": "Event timestamp."
+        },
+        "movementId": {
+          "type": "string",
+          "description": "Unique movement transaction ID."
+        },
+        "tyreNumber": {
+          "type": "string",
+          "description": "The unique serial/asset number of the tyre."
+        },
+        "vehicleFrom": {
+          "type": "string",
+          "description": "The vehicle the tyre was removed from."
+        },
+        "vehicleTo": {
+          "type": "string",
+          "description": "The vehicle the tyre was mounted to."
+        },
+        "positionFrom": {
+          "type": "string",
+          "description": "The position of the tyre before the movement."
+        },
+        "positionTo": {
+          "type": "string",
+          "description": "The position of the tyre after the movement."
+        },
+        "movementDate": {
+          "type": "string",
+          "description": "The date when the movement occurred."
+        },
+        "odometer": {
+          "type": "number",
+          "description": "The odometer reading of the vehicle at the time of movement."
         },
         "supervisorName": {
           "type": "string",
-          "description": "Acting Supervisor."
+          "description": "The name of the supervisor who authorized the movement."
+        },
+        "reason": {
+          "type": "string",
+          "description": "The reason for the tyre movement."
         }
       },
-      "required": ["id", "serialNumber", "sourceVehicle", "destinationVehicle", "sourcePosition", "destinationPosition", "date", "supervisorName"]
+      "required": [
+        "id",
+        "serialNumber",
+        "sourceVehicle",
+        "destinationVehicle",
+        "sourcePosition",
+        "destinationPosition",
+        "date",
+        "movementId",
+        "tyreNumber",
+        "vehicleFrom",
+        "vehicleTo",
+        "positionFrom",
+        "positionTo",
+        "movementDate",
+        "odometer",
+        "supervisorName",
+        "reason"
+      ]
     },
     "TyreInspection": {
       "title": "TyreInspection",
@@ -583,9 +666,9 @@
       "schema": "TyreMaster",
       "description": "Consolidated master stock inventory database for tires"
     },
-    "tyreHistories": {
+    "tyreHistory": {
       "schema": "TyreHistory",
-      "description": "Historic registry for tire mountings and unmountings"
+      "description": "Historic registry for tire mountings, removals, retreads, and scraps"
     },
     "tyreMovements": {
       "schema": "TyreMovement",

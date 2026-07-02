@@ -46,6 +46,7 @@ interface TyreManagementViewProps {
   setTyreExpenses: React.Dispatch<React.SetStateAction<TyreExpense[]>>;
   retreadRecords: RetreadRecord[];
   setRetreadRecords: React.Dispatch<React.SetStateAction<RetreadRecord[]>>;
+  onSubTabChange?: (subTab: 'chassis' | 'analytics' | 'master' | 'history' | 'inspection' | 'retread') => void;
 }
 
 export default function TyreManagementView({ 
@@ -65,11 +66,19 @@ export default function TyreManagementView({
   tyreExpenses,
   setTyreExpenses,
   retreadRecords,
-  setRetreadRecords
+  setRetreadRecords,
+  onSubTabChange
 }: TyreManagementViewProps) {
   
   // Tabs management
   const [activeSubTab, setActiveSubTab] = useState<'chassis' | 'analytics' | 'master' | 'history' | 'inspection' | 'retread'>('chassis');
+
+  useEffect(() => {
+    if (onSubTabChange) {
+      onSubTabChange(activeSubTab);
+    }
+  }, [activeSubTab, onSubTabChange]);
+  const [historyViewMode, setHistoryViewMode] = useState<'movements' | 'journey'>('movements');
 
   // Select the local vehicle context
   const [selectedTruckNum, setSelectedTruckNum] = useState<string>(
@@ -93,6 +102,49 @@ export default function TyreManagementView({
   const activeTyre = activeVehicle?.tyres.find(t => t.positionId === selectedTyrePosId) || activeVehicle?.tyres[0];
 
   const prevTruckNumRef = useRef<string>('');
+
+  const addTyreHistoryRecord = (params: {
+    vehicleNo: string;
+    serialNumber: string;
+    oldPosition?: string;
+    newPosition?: string;
+    movementType: 'Tyre Installed' | 'Tyre Removed' | 'Tyre Replaced' | 'Tyre Swapped' | 'Tyre Sent for Retread' | 'Tyre Returned from Retread' | 'Tyre Scrapped';
+    odometer: number;
+    supervisorName: string;
+    remarks?: string;
+    oldStatus?: string;
+    newStatus?: string;
+  }) => {
+    const masterTyre = tyres.find(t => t.serialNumber === params.serialNumber);
+    const tyreNo = masterTyre?.tyreNumber || masterTyre?.serialNumber || '';
+
+    const newHist: TyreHistory = {
+      historyId: `TH_${Date.now()}_${Math.random().toString(36).substr(2, 5).toUpperCase()}`,
+      vehicleNo: params.vehicleNo,
+      tyreNumber: tyreNo,
+      serialNumber: params.serialNumber,
+      oldPosition: params.oldPosition || '',
+      newPosition: params.newPosition || '',
+      movementType: params.movementType,
+      movementDate: new Date().toISOString().split('T')[0],
+      odometer: params.odometer,
+      supervisorName: params.supervisorName,
+      remarks: params.remarks || '',
+      oldStatus: params.oldStatus || '',
+      newStatus: params.newStatus || '',
+
+      // Backwards compatibility properties
+      id: `TH_${Date.now()}_${Math.random().toString(36).substr(2, 5).toUpperCase()}`,
+      truckNumber: params.vehicleNo,
+      positionId: params.newPosition || params.oldPosition || '',
+      positionName: params.newPosition || params.oldPosition || '',
+      installedDate: new Date().toISOString().split('T')[0],
+      kmAtInstallation: params.odometer,
+      removalReason: params.remarks || ''
+    };
+
+    setTyreHistory(prev => [newHist, ...prev]);
+  };
 
   // Ensure there is always a default active tyre selected if plate changes
   useEffect(() => {
@@ -363,6 +415,12 @@ export default function TyreManagementView({
     const todayStr = new Date().toISOString().split('T')[0];
     const timeStr = new Date().toTimeString().slice(0, 5);
 
+    const masterSource = tyres.find(t => t.serialNumber === sourceTyre.serialNumber);
+    const sourceTyreNo = masterSource?.tyreNumber || masterSource?.serialNumber || '';
+    
+    const masterDest = tyres.find(t => t.serialNumber === destTyre.serialNumber);
+    const destTyreNo = masterDest?.tyreNumber || masterDest?.serialNumber || '';
+
     // Record movement history in tyreMovements
     const movementA: TyreMovement = {
       id: `MOVE_${Date.now()}_A`,
@@ -372,7 +430,17 @@ export default function TyreManagementView({
       sourcePosition: sourceTyre.positionName,
       destinationPosition: destTyre.positionName,
       date: `${todayStr} ${timeStr}`,
-      supervisorName: swapSupervisor
+      supervisorName: swapSupervisor,
+
+      movementId: `MOVE_${Date.now()}_A`,
+      tyreNumber: sourceTyreNo,
+      vehicleFrom: activeVehicle.truckNumber,
+      vehicleTo: destVehicleNum,
+      positionFrom: sourceTyre.positionName,
+      positionTo: destTyre.positionName,
+      movementDate: todayStr,
+      odometer: installKmInput,
+      reason: `Swapped with ${destTyre.serialNumber} on vehicle ${destVehicleNum}`
     };
 
     const movementB: TyreMovement = {
@@ -383,7 +451,17 @@ export default function TyreManagementView({
       sourcePosition: destTyre.positionName,
       destinationPosition: sourceTyre.positionName,
       date: `${todayStr} ${timeStr}`,
-      supervisorName: swapSupervisor
+      supervisorName: swapSupervisor,
+
+      movementId: `MOVE_${Date.now()}_B`,
+      tyreNumber: destTyreNo,
+      vehicleFrom: destVehicleNum,
+      vehicleTo: activeVehicle.truckNumber,
+      positionFrom: destTyre.positionName,
+      positionTo: sourceTyre.positionName,
+      movementDate: todayStr,
+      odometer: installKmInput,
+      reason: `Swapped with ${sourceTyre.serialNumber} on vehicle ${activeVehicle.truckNumber}`
     };
 
     setTyreMovements(prev => [movementA, movementB, ...prev]);
@@ -396,6 +474,8 @@ export default function TyreManagementView({
           return {
             ...h,
             removedDate: todayStr,
+            kmAtRemoval: installKmInput,
+            totalKmRun: Math.max(0, installKmInput - (h.kmAtInstallation || 0)),
             removalReason: `Swapped to ${destVehicleNum} (${destTyre.positionName})`,
             supervisorName: swapSupervisor
           };
@@ -404,6 +484,8 @@ export default function TyreManagementView({
           return {
             ...h,
             removedDate: todayStr,
+            kmAtRemoval: installKmInput,
+            totalKmRun: Math.max(0, installKmInput - (h.kmAtInstallation || 0)),
             removalReason: `Swapped to ${activeVehicle.truckNumber} (${sourceTyre.positionName})`,
             supervisorName: swapSupervisor
           };
@@ -411,27 +493,61 @@ export default function TyreManagementView({
         return h;
       });
 
-      // Add new open records
+      // Construct Tyre Swapped records for both source and destination
+      const masterSource = tyres.find(t => t.serialNumber === sourceTyre.serialNumber);
+      const sourceTyreNo = masterSource?.tyreNumber || masterSource?.serialNumber || '';
+      
+      const masterDest = tyres.find(t => t.serialNumber === destTyre.serialNumber);
+      const destTyreNo = masterDest?.tyreNumber || masterDest?.serialNumber || '';
+
       const newHistA: TyreHistory = {
-        id: `HIST_${Date.now()}_A`,
+        historyId: `TH_${Date.now()}_A`,
+        vehicleNo: destVehicleNum,
+        tyreNumber: sourceTyreNo,
         serialNumber: sourceTyre.serialNumber,
+        oldPosition: sourceTyre.positionName,
+        newPosition: destTyre.positionName,
+        movementType: 'Tyre Swapped',
+        movementDate: todayStr,
+        odometer: installKmInput,
+        supervisorName: swapSupervisor,
+        remarks: `Swapped with ${destTyre.serialNumber} on vehicle ${destVehicleNum}`,
+        oldStatus: 'Active',
+        newStatus: 'Active',
+
+        // Backwards compatibility properties
+        id: `HIST_${Date.now()}_A`,
         truckNumber: destVehicleNum,
         positionId: destPositionId,
         positionName: destTyre.positionName,
         installedDate: todayStr,
         kmAtInstallation: installKmInput,
-        supervisorName: swapSupervisor
+        removalReason: `Swapped with ${destTyre.serialNumber} on vehicle ${destVehicleNum}`
       };
 
       const newHistB: TyreHistory = {
-        id: `HIST_${Date.now()}_B`,
+        historyId: `TH_${Date.now()}_B`,
+        vehicleNo: activeVehicle.truckNumber,
+        tyreNumber: destTyreNo,
         serialNumber: destTyre.serialNumber,
+        oldPosition: destTyre.positionName,
+        newPosition: sourceTyre.positionName,
+        movementType: 'Tyre Swapped',
+        movementDate: todayStr,
+        odometer: installKmInput,
+        supervisorName: swapSupervisor,
+        remarks: `Swapped with ${sourceTyre.serialNumber} on vehicle ${activeVehicle.truckNumber}`,
+        oldStatus: 'Active',
+        newStatus: 'Active',
+
+        // Backwards compatibility properties
+        id: `HIST_${Date.now()}_B`,
         truckNumber: activeVehicle.truckNumber,
         positionId: selectedTyrePosId,
         positionName: sourceTyre.positionName,
         installedDate: todayStr,
         kmAtInstallation: installKmInput,
-        supervisorName: swapSupervisor
+        removalReason: `Swapped with ${sourceTyre.serialNumber} on vehicle ${activeVehicle.truckNumber}`
       };
 
       return [newHistA, newHistB, ...updated];
@@ -564,6 +680,10 @@ export default function TyreManagementView({
     });
 
     // 2. Add old tyre removal journey and new tyre installation journey to Tyre History DB
+    const masterOldTyre = tyres.find(t => t.serialNumber === oldSerial);
+    const oldTyreNo = masterOldTyre?.tyreNumber || masterOldTyre?.serialNumber || '';
+    const achievedScrap = (masterOldTyre?.retreadCount || 0) >= 3 || removalReasonInput.toLowerCase().includes('scrap');
+
     setTyreHistory(prev => {
       const closed = prev.map(h => {
         if (h.serialNumber === oldSerial && !h.removedDate) {
@@ -574,40 +694,147 @@ export default function TyreManagementView({
             kmAtRemoval: installKmInput,
             totalKmRun: run,
             removalReason: removalReasonInput,
-            supervisorName: swapSupervisor
+            supervisorName: swapSupervisor,
+            oldStatus: 'Active',
+            newStatus: achievedScrap ? 'Scrap' : 'Removed'
           };
         }
         return h;
       });
 
-      const newHist: TyreHistory = {
-        id: `HIST_${Date.now()}`,
+      // A. "Tyre Removed" or "Tyre Scrapped" record for the old tyre
+      const oldHistRecord: TyreHistory = {
+        historyId: `TH_${Date.now()}_REMOVE`,
+        vehicleNo: activeVehicle.truckNumber,
+        tyreNumber: oldTyreNo,
+        serialNumber: oldSerial,
+        oldPosition: activeTyre.positionName,
+        newPosition: achievedScrap ? 'Scrap Heap' : 'Spare Racks',
+        movementType: achievedScrap ? 'Tyre Scrapped' : 'Tyre Removed',
+        movementDate: todayStr,
+        odometer: installKmInput,
+        supervisorName: swapSupervisor,
+        remarks: achievedScrap ? `Scrapped: ${removalReasonInput}` : `Removed: ${removalReasonInput}`,
+        oldStatus: 'Active',
+        newStatus: achievedScrap ? 'Scrap' : 'Removed',
+
+        // Backwards compatibility properties
+        id: `HIST_RM_${Date.now()}`,
+        truckNumber: activeVehicle.truckNumber,
+        positionId: activeTyre.positionId,
+        positionName: activeTyre.positionName,
+        installedDate: todayStr,
+        removedDate: todayStr,
+        kmAtInstallation: installKmInput,
+        kmAtRemoval: installKmInput,
+        totalKmRun: 0,
+        removalReason: removalReasonInput
+      };
+
+      // B. "Tyre Installed" record for the new tyre
+      const newHistRecord: TyreHistory = {
+        historyId: `TH_${Date.now()}_INSTALL`,
+        vehicleNo: activeVehicle.truckNumber,
+        tyreNumber: targetSpare.tyreNumber || targetSpare.serialNumber || '',
         serialNumber: targetSpare.serialNumber,
+        oldPosition: 'Spare Racks',
+        newPosition: activeTyre.positionName,
+        movementType: 'Tyre Installed',
+        movementDate: todayStr,
+        odometer: installKmInput,
+        supervisorName: swapSupervisor,
+        remarks: `Installed as replacement for ${oldSerial}`,
+        oldStatus: targetSpare.status,
+        newStatus: 'Active',
+
+        // Backwards compatibility properties
+        id: `HIST_${Date.now()}`,
         truckNumber: activeVehicle.truckNumber,
         positionId: selectedTyrePosId,
         positionName: activeTyre.positionName,
         installedDate: todayStr,
         kmAtInstallation: installKmInput,
-        supervisorName: swapSupervisor
+        removalReason: `Installed to replace ${oldSerial}`
       };
 
-      return [newHist, ...closed];
+      // C. "Tyre Replaced" record representing the transition
+      const repHistRecord: TyreHistory = {
+        historyId: `TH_${Date.now()}_REPLACE`,
+        vehicleNo: activeVehicle.truckNumber,
+        tyreNumber: oldTyreNo,
+        serialNumber: oldSerial,
+        oldPosition: activeTyre.positionName,
+        newPosition: `Replaced by ${targetSpare.serialNumber}`,
+        movementType: 'Tyre Replaced',
+        movementDate: todayStr,
+        odometer: installKmInput,
+        supervisorName: swapSupervisor,
+        remarks: `Replaced with tyre ${targetSpare.serialNumber}. Reason: ${removalReasonInput}`,
+        oldStatus: 'Active',
+        newStatus: achievedScrap ? 'Scrap' : 'Removed',
+
+        // Backwards compatibility properties
+        id: `HIST_REP_${Date.now()}`,
+        truckNumber: activeVehicle.truckNumber,
+        positionId: activeTyre.positionId,
+        positionName: activeTyre.positionName,
+        installedDate: todayStr,
+        removedDate: todayStr,
+        kmAtInstallation: installKmInput,
+        kmAtRemoval: installKmInput,
+        totalKmRun: 0,
+        removalReason: `Replaced by ${targetSpare.serialNumber}. Reason: ${removalReasonInput}`
+      };
+
+      return [repHistRecord, newHistRecord, oldHistRecord, ...closed];
     });
 
     console.log("Tyre History Written");
 
     // 3. Record movement trace
-    const newMovement: TyreMovement = {
-      id: `MOVE_${Date.now()}`,
+    const movementRemove: TyreMovement = {
+      id: `MOVE_${Date.now()}_RM`,
+      serialNumber: oldSerial,
+      sourceVehicle: activeVehicle.truckNumber,
+      destinationVehicle: achievedScrap ? 'Scrap Yard' : 'Spare Yard',
+      sourcePosition: activeTyre.positionName,
+      destinationPosition: achievedScrap ? 'Scrap Pile' : 'Spare Shelf',
+      date: `${todayStr} ${timeStr}`,
+      supervisorName: swapSupervisor,
+
+      movementId: `MOVE_${Date.now()}_RM`,
+      tyreNumber: oldTyreNo,
+      vehicleFrom: activeVehicle.truckNumber,
+      vehicleTo: achievedScrap ? 'Scrap Yard' : 'Spare Yard',
+      positionFrom: activeTyre.positionName,
+      positionTo: achievedScrap ? 'Scrap Pile' : 'Spare Shelf',
+      movementDate: todayStr,
+      odometer: installKmInput,
+      reason: removalReasonInput
+    };
+
+    const movementInstall: TyreMovement = {
+      id: `MOVE_${Date.now()}_INS`,
       serialNumber: targetSpare.serialNumber,
-      sourceVehicle: 'Spare Yard Rack',
+      sourceVehicle: 'Spare Yard',
       destinationVehicle: activeVehicle.truckNumber,
       sourcePosition: 'Spare Shelf',
       destinationPosition: activeTyre.positionName,
       date: `${todayStr} ${timeStr}`,
-      supervisorName: swapSupervisor
+      supervisorName: swapSupervisor,
+
+      movementId: `MOVE_${Date.now()}_INS`,
+      tyreNumber: targetSpare.tyreNumber || targetSpare.serialNumber || '',
+      vehicleFrom: 'Spare Yard',
+      vehicleTo: activeVehicle.truckNumber,
+      positionFrom: 'Spare Shelf',
+      positionTo: activeTyre.positionName,
+      movementDate: todayStr,
+      odometer: installKmInput,
+      reason: `Installed to replace ${oldSerial}`
     };
-    setTyreMovements(prev => [newMovement, ...prev]);
+
+    setTyreMovements(prev => [movementInstall, movementRemove, ...prev]);
 
     // 4. Update vehicle chassis map
     setVehicles(prev => prev.map(v => {
@@ -973,6 +1200,63 @@ export default function TyreManagementView({
     };
     setTyreExpenses(prev => [newExpense, ...prev]);
 
+    // 4. Log Tyre history for Retread lifecycle: "Sent for Retread" and "Returned from Retread"
+    const tyreNo = tObj.tyreNumber || tObj.serialNumber || '';
+    const sentHist: TyreHistory = {
+      historyId: `TH_${Date.now()}_SENT_RETREAD`,
+      vehicleNo: tObj.currentVehicle || 'Spare Rack',
+      tyreNumber: tyreNo,
+      serialNumber: retreadSerial,
+      oldPosition: tObj.currentPosition || 'Spare',
+      newPosition: 'Retread Workshop',
+      movementType: 'Tyre Sent for Retread',
+      movementDate: retreadDateStr,
+      odometer: tObj.currentRunningKm,
+      supervisorName: 'Workshop Supervisor',
+      remarks: `Sent to ${retreadVendor} under invoice ${retreadInvoice}`,
+      oldStatus: tObj.status,
+      newStatus: 'Retread',
+
+      // Backwards compatibility properties
+      id: `HIST_S_RET_${Date.now()}`,
+      truckNumber: tObj.currentVehicle || 'Spare Rack',
+      positionId: tObj.currentPosition || 'Spare',
+      positionName: tObj.currentPosition || 'Spare',
+      installedDate: retreadDateStr,
+      removedDate: retreadDateStr,
+      kmAtInstallation: tObj.currentRunningKm,
+      kmAtRemoval: tObj.currentRunningKm,
+      totalKmRun: 0,
+      removalReason: `Sent to retread workshop ${retreadVendor}`
+    };
+
+    const returnedHist: TyreHistory = {
+      historyId: `TH_${Date.now()}_RETURN_RETREAD`,
+      vehicleNo: 'Spare Rack',
+      tyreNumber: tyreNo,
+      serialNumber: retreadSerial,
+      oldPosition: 'Retread Workshop',
+      newPosition: 'Spare Racks',
+      movementType: 'Tyre Returned from Retread',
+      movementDate: retreadDateStr,
+      odometer: tObj.currentRunningKm,
+      supervisorName: 'Workshop Supervisor',
+      remarks: `Returned from ${retreadVendor} (Retread Count: ${tObj.retreadCount + 1})`,
+      oldStatus: 'Retread',
+      newStatus: 'Spare',
+
+      // Backwards compatibility properties
+      id: `HIST_R_RET_${Date.now()}`,
+      truckNumber: 'Spare Rack',
+      positionId: 'Spare',
+      positionName: 'Spare',
+      installedDate: retreadDateStr,
+      kmAtInstallation: tObj.currentRunningKm,
+      removalReason: `Returned from retread workshop ${retreadVendor}`
+    };
+
+    setTyreHistory(prev => [returnedHist, sentHist, ...prev]);
+
     setRetreadSerial('');
     alert(`Success: Retread completed for ${retreadSerial}! It is restored to 12mm tread depth and returned to Spare racks.`);
   };
@@ -1080,19 +1364,19 @@ export default function TyreManagementView({
                 <h4 className="font-bold text-slate-900 uppercase text-xs tracking-wider">
                   {activeVehicle.truckNumber} Chassis Map
                 </h4>
-                <p className="text-[10px] text-slate-400 font-bold uppercase">
-                  Manufacturer: {activeVehicle.manufacturer} • {activeVehicle.tyresCount}-wheeler template
+                <p className="text-[10px] text-slate-400 font-bold uppercase font-mono">
+                  Template: {activeVehicle.vehicleTemplate || `${activeVehicle.manufacturer} (${activeVehicle.tyresCount}-Wheelers)`}
                 </p>
-                {activeVehicle.manufacturer === VehicleManufacturer.ASHOK_LEYLAND && (
-                  <div className="text-[9px] bg-amber-50 px-2 py-0.5 rounded text-amber-700 inline-block mt-1 font-semibold border border-amber-100">
-                    🚫 Lift Axle Hidden (Leyland Template Rule)
+                {!activeVehicle.hasLiftAxle && (
+                  <div className="text-[9px] bg-amber-50 px-2 py-0.5 rounded text-amber-700 inline-block mt-1 font-semibold border border-amber-100 font-sans">
+                    🚫 Lift Axle Hidden (Template Rule)
                   </div>
                 )}
               </div>
 
               {/* Truck Cab */}
               <div className="w-24 h-12 bg-slate-900 rounded-t-2xl border-x border-slate-700 flex items-center justify-center mb-6">
-                <span className="text-[10px] font-bold text-slate-400 tracking-wider">CABIN</span>
+                <span className="text-[10px] font-bold text-slate-400 tracking-wider font-sans">CABIN</span>
               </div>
 
               <div className="relative w-56 flex flex-col space-y-6">
@@ -1101,58 +1385,64 @@ export default function TyreManagementView({
                 {/* Axle 1 */}
                 <div className="z-10 flex justify-between items-center px-4">
                   {renderVisualWheel("Axle1_L", "ST-L")}
-                  <div className="bg-slate-100 h-2 flex-1 mx-2 border-y border-slate-200 mt-2 text-center text-[7px] text-slate-400 font-bold">AXLE 1</div>
+                  <div className="bg-slate-100 h-2 flex-1 mx-2 border-y border-slate-200 mt-2 text-center text-[7px] text-slate-400 font-bold font-mono">AXLE 1</div>
                   {renderVisualWheel("Axle1_R", "ST-R")}
                 </div>
 
-                {/* Axle 2 (TATA Only) */}
-                {activeVehicle.manufacturer === VehicleManufacturer.TATA ? (
+                {/* Axle 2 (Only for 14-Wheelers) */}
+                {activeVehicle.tyresCount === 14 ? (
                   <div className="z-10 flex justify-between items-center">
                     <div className="flex space-x-1">
-                      {renderVisualWheel("Axle2_LO", "LA-LO")}
-                      {renderVisualWheel("Axle2_LI", "LA-LI")}
+                      {renderVisualWheel("Axle2_LO", activeVehicle.hasLiftAxle ? "LA-LO" : "MD-LO")}
+                      {renderVisualWheel("Axle2_LI", activeVehicle.hasLiftAxle ? "LA-LI" : "MD-LI")}
                     </div>
-                    <div className="bg-purple-100 border border-purple-200 text-purple-700 h-6 flex-1 mx-2 flex items-center justify-center text-[7.5px] font-bold uppercase rounded tracking-wider">
-                      LIFT
-                    </div>
+                    {activeVehicle.hasLiftAxle ? (
+                      <div className="bg-purple-100 border border-purple-200 text-purple-700 h-6 flex-1 mx-2 flex items-center justify-center text-[7.5px] font-bold uppercase rounded tracking-wider font-sans">
+                        LIFT
+                      </div>
+                    ) : (
+                      <div className="bg-slate-100 border border-slate-200 text-slate-500 h-6 flex-1 mx-2 flex items-center justify-center text-[7.5px] font-bold uppercase rounded tracking-wider font-sans">
+                        MID AXLE
+                      </div>
+                    )}
                     <div className="flex space-x-1">
-                      {renderVisualWheel("Axle2_RI", "LA-RI")}
-                      {renderVisualWheel("Axle2_RO", "LA-RO")}
+                      {renderVisualWheel("Axle2_RI", activeVehicle.hasLiftAxle ? "LA-RI" : "MD-RI")}
+                      {renderVisualWheel("Axle2_RO", activeVehicle.hasLiftAxle ? "LA-RO" : "MD-RO")}
                     </div>
                   </div>
                 ) : null}
 
-                {/* Axle 3 */}
+                {/* Axle 3 (Drive 1) */}
                 <div className="z-10 flex justify-between items-center">
                   <div className="flex space-x-1">
-                    {renderVisualWheel(activeVehicle.manufacturer === VehicleManufacturer.TATA ? "Axle3_LO" : "Axle2_LO", "D1-LO")}
-                    {renderVisualWheel(activeVehicle.manufacturer === VehicleManufacturer.TATA ? "Axle3_LI" : "Axle2_LI", "D1-LI")}
+                    {renderVisualWheel(activeVehicle.tyresCount === 14 ? "Axle3_LO" : "Axle2_LO", "D1-LO")}
+                    {renderVisualWheel(activeVehicle.tyresCount === 14 ? "Axle3_LI" : "Axle2_LI", "D1-LI")}
                   </div>
-                  <div className="bg-slate-100 h-4 flex-1 mx-2 flex items-center justify-center text-[7.5px] text-slate-400 font-bold">DRIVE 1</div>
+                  <div className="bg-slate-100 h-4 flex-1 mx-2 flex items-center justify-center text-[7.5px] text-slate-400 font-bold font-mono">DRIVE 1</div>
                   <div className="flex space-x-1">
-                    {renderVisualWheel(activeVehicle.manufacturer === VehicleManufacturer.TATA ? "Axle3_RI" : "Axle2_RI", "D1-RI")}
-                    {renderVisualWheel(activeVehicle.manufacturer === VehicleManufacturer.TATA ? "Axle3_RO" : "Axle2_RO", "D1-RO")}
+                    {renderVisualWheel(activeVehicle.tyresCount === 14 ? "Axle3_RI" : "Axle2_RI", "D1-RI")}
+                    {renderVisualWheel(activeVehicle.tyresCount === 14 ? "Axle3_RO" : "Axle2_RO", "D1-RO")}
                   </div>
                 </div>
 
-                {/* Axle 4 */}
+                {/* Axle 4 (Drive 2) */}
                 <div className="z-10 flex justify-between items-center">
                   <div className="flex space-x-1">
-                    {renderVisualWheel(activeVehicle.manufacturer === VehicleManufacturer.TATA ? "Axle4_LO" : "Axle3_LO", "D2-LO")}
-                    {renderVisualWheel(activeVehicle.manufacturer === VehicleManufacturer.TATA ? "Axle4_LI" : "Axle3_LI", "D2-LI")}
+                    {renderVisualWheel(activeVehicle.tyresCount === 14 ? "Axle4_LO" : "Axle3_LO", "D2-LO")}
+                    {renderVisualWheel(activeVehicle.tyresCount === 14 ? "Axle4_LI" : "Axle3_LI", "D2-LI")}
                   </div>
-                  <div className="bg-slate-100 h-4 flex-1 mx-2 flex items-center justify-center text-[7.5px] text-slate-400 font-bold">DRIVE 2</div>
+                  <div className="bg-slate-100 h-4 flex-1 mx-2 flex items-center justify-center text-[7.5px] text-slate-400 font-bold font-mono">DRIVE 2</div>
                   <div className="flex space-x-1">
-                    {renderVisualWheel(activeVehicle.manufacturer === VehicleManufacturer.TATA ? "Axle4_RI" : "Axle3_RI", "D2-RI")}
-                    {renderVisualWheel(activeVehicle.manufacturer === VehicleManufacturer.TATA ? "Axle4_RO" : "Axle3_RO", "D2-RO")}
+                    {renderVisualWheel(activeVehicle.tyresCount === 14 ? "Axle4_RI" : "Axle3_RI", "D2-RI")}
+                    {renderVisualWheel(activeVehicle.tyresCount === 14 ? "Axle4_RO" : "Axle3_RO", "D2-RO")}
                   </div>
                 </div>
 
-                {/* Axle 5 Tag (Leyland only) */}
-                {activeVehicle.manufacturer === VehicleManufacturer.ASHOK_LEYLAND ? (
+                {/* Axle 5 Tag (Only for 12-Wheelers) */}
+                {activeVehicle.tyresCount === 12 ? (
                   <div className="z-10 flex justify-between items-center px-4">
                     {renderVisualWheel("Axle4_L", "R-L")}
-                    <div className="bg-slate-100 h-2 flex-1 mx-2 border-y border-slate-200 mt-2 text-center text-[7px] text-slate-400 font-bold">TAG AXLE</div>
+                    <div className="bg-slate-100 h-2 flex-1 mx-2 border-y border-slate-200 mt-2 text-center text-[7px] text-slate-400 font-bold font-mono">TAG AXLE</div>
                     {renderVisualWheel("Axle4_R", "R-R")}
                   </div>
                 ) : null}
@@ -1993,43 +2283,171 @@ export default function TyreManagementView({
           ---------------------------------------------------- */}
       {activeSubTab === 'history' && (
         <div className="bg-white p-6 rounded border border-slate-200 shadow-sm space-y-4">
-          <div>
-            <h2 className="text-base font-bold text-slate-900 uppercase font-sans">Tyre Journey & Shift Registry</h2>
-            <p className="text-xs text-slate-400 font-semibold uppercase">Every chassis swap, position shift, alignment and scrap history logs.</p>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h2 className="text-base font-bold text-slate-900 uppercase font-sans">Tyre History & Movements</h2>
+              <p className="text-xs text-slate-400 font-semibold uppercase">Review registered movements and journey timelines synced with Firestore.</p>
+            </div>
+            <div className="flex bg-slate-100 p-0.5 rounded-lg border border-slate-200 self-start sm:self-auto">
+              <button
+                type="button"
+                onClick={() => setHistoryViewMode('movements')}
+                className={`px-3 py-1.5 text-xs font-bold font-sans rounded-md transition ${
+                  historyViewMode === 'movements'
+                    ? 'bg-white text-blue-600 shadow-sm'
+                    : 'text-slate-500 hover:text-slate-950'
+                }`}
+              >
+                Firestore Movements
+              </button>
+              <button
+                type="button"
+                onClick={() => setHistoryViewMode('journey')}
+                className={`px-3 py-1.5 text-xs font-bold font-sans rounded-md transition ${
+                  historyViewMode === 'journey'
+                    ? 'bg-white text-blue-600 shadow-sm'
+                    : 'text-slate-500 hover:text-slate-950'
+                }`}
+              >
+                Detailed Journeys
+              </button>
+            </div>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse text-xs min-w-[600px]">
-              <thead>
-                <tr className="border-b border-slate-200 text-slate-400 font-bold uppercase text-[9px] font-mono">
-                  <th className="pb-2">Journey ID</th>
-                  <th className="pb-2">Tyre Serial</th>
-                  <th className="pb-2">Vehicle Fitted</th>
-                  <th className="pb-2">Position Mounted</th>
-                  <th className="pb-2">Fitted Date</th>
-                  <th className="pb-2">Removed Date</th>
-                  <th className="pb-2">Total KM Run</th>
-                  <th className="pb-2 font-sans">Removal Reason</th>
-                  <th className="pb-2 text-right">Supervisor Name</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 font-mono text-slate-700">
-                {tyreHistory.map((h) => (
-                  <tr key={h.id} className="hover:bg-slate-50">
-                    <td className="py-2.5 font-bold text-slate-500">{h.id.slice(0, 10)}</td>
-                    <td className="py-2.5 font-bold text-slate-900">{h.serialNumber}</td>
-                    <td className="py-2.5 font-bold text-blue-600">{h.truckNumber}</td>
-                    <td className="py-2.5 font-sans">{h.positionName}</td>
-                    <td className="py-2.5">{h.installedDate}</td>
-                    <td className="py-2.5">{h.removedDate || 'ACTIVE'}</td>
-                    <td className="py-2.5 font-bold">{h.totalKmRun ? h.totalKmRun.toLocaleString() : 0} KM</td>
-                    <td className="py-2.5 font-sans text-slate-500 italic">{h.removalReason || 'Fitted / Active'}</td>
-                    <td className="py-2.5 font-sans font-bold text-slate-900 text-right">{h.supervisorName}</td>
+          {historyViewMode === 'movements' ? (
+            <div className="space-y-4 animate-fadeIn">
+              <div className="bg-blue-50 p-3 rounded border border-blue-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs text-blue-800">
+                <span>
+                  Showing active realtime-synced <strong>tyreMovements</strong> collection from Firestore. Updates save automatically on rotation or replacement.
+                </span>
+                <span className="px-2 py-0.5 bg-blue-100 text-blue-700 font-bold font-mono rounded text-[10px] self-start sm:self-auto">
+                  {tyreMovements.length} Records
+                </span>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse text-xs min-w-[1000px]">
+                  <thead>
+                    <tr className="border-b border-slate-200 text-slate-400 font-bold uppercase text-[9px] font-mono">
+                      <th className="pb-2">Movement ID</th>
+                      <th className="pb-2">Tyre Number</th>
+                      <th className="pb-2">From Vehicle</th>
+                      <th className="pb-2">To Vehicle</th>
+                      <th className="pb-2">From Position</th>
+                      <th className="pb-2">To Position</th>
+                      <th className="pb-2">Movement Date</th>
+                      <th className="pb-2">Odometer</th>
+                      <th className="pb-2">Authorized By</th>
+                      <th className="pb-2 text-right">Reason</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 font-mono text-slate-700">
+                    {tyreMovements
+                      .slice()
+                      .sort((a, b) => {
+                        const dateA = a.movementDate || a.date || '';
+                        const dateB = b.movementDate || b.date || '';
+                        return dateB.localeCompare(dateA);
+                      })
+                      .map((m) => (
+                        <tr key={m.movementId || m.id} className="hover:bg-slate-50">
+                          <td className="py-2.5 font-bold text-slate-500">{(m.movementId || m.id || '').slice(0, 15)}</td>
+                          <td className="py-2.5 font-bold text-slate-900">{m.tyreNumber || m.serialNumber}</td>
+                          <td className="py-2.5 font-bold text-slate-600">{m.vehicleFrom || m.sourceVehicle || 'Spare Yard'}</td>
+                          <td className="py-2.5 font-bold text-blue-600">{m.vehicleTo || m.destinationVehicle || 'Spare Yard'}</td>
+                          <td className="py-2.5 font-sans text-slate-500">{m.positionFrom || m.sourcePosition || 'Spare'}</td>
+                          <td className="py-2.5 font-sans text-slate-700 font-semibold">{m.positionTo || m.destinationPosition || 'Spare'}</td>
+                          <td className="py-2.5 text-slate-600">{m.movementDate || (m.date ? m.date.split(' ')[0] : 'N/A')}</td>
+                          <td className="py-2.5 font-bold text-slate-600">{(m.odometer || 0).toLocaleString()} KM</td>
+                          <td className="py-2.5 font-sans font-bold text-slate-900">{m.supervisorName}</td>
+                          <td className="py-2.5 font-sans text-slate-500 italic text-right">{m.reason || 'Routine replacement / rotation'}</td>
+                        </tr>
+                      ))}
+                    {tyreMovements.length === 0 && (
+                      <tr>
+                        <td colSpan={10} className="py-8 text-center text-slate-400 font-sans">
+                          No tyre movements logged yet.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ) : (
+            <div className="overflow-x-auto animate-fadeIn">
+              <table className="w-full text-left border-collapse text-xs min-w-[1000px]">
+                <thead>
+                  <tr className="border-b border-slate-200 text-slate-400 font-bold uppercase text-[9px] font-mono">
+                    <th className="pb-2">History ID</th>
+                    <th className="pb-2">Tyre Serial (No)</th>
+                    <th className="pb-2">Vehicle</th>
+                    <th className="pb-2">Movement Type</th>
+                    <th className="pb-2">Date</th>
+                    <th className="pb-2">Odometer</th>
+                    <th className="pb-2">Positions (Old → New)</th>
+                    <th className="pb-2">Statuses (Old → New)</th>
+                    <th className="pb-2 font-sans">Supervisor</th>
+                    <th className="pb-2 text-right">Remarks / Reason</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-slate-100 font-mono text-slate-700">
+                  {tyreHistory.map((h) => {
+                    const mType = h.movementType || (h.removedDate ? 'Tyre Removed' : 'Tyre Installed');
+                    const tNoDisplay = h.tyreNumber ? `${h.serialNumber} (${h.tyreNumber})` : h.serialNumber;
+                    const vNoDisplay = h.vehicleNo || h.truckNumber || 'Spare Racks';
+                    const mDateDisplay = h.movementDate || h.installedDate || 'N/A';
+                    const odomDisplay = typeof h.odometer === 'number' ? h.odometer : (h.kmAtInstallation || 0);
+
+                    const mTypeColor = (() => {
+                      switch (mType) {
+                        case 'Tyre Installed': return 'bg-emerald-50 text-emerald-700 border border-emerald-200';
+                        case 'Tyre Removed': return 'bg-amber-50 text-amber-700 border border-amber-200';
+                        case 'Tyre Replaced': return 'bg-blue-50 text-blue-700 border border-blue-200';
+                        case 'Tyre Swapped': return 'bg-indigo-50 text-indigo-700 border border-indigo-200';
+                        case 'Tyre Sent for Retread': return 'bg-purple-50 text-purple-700 border border-purple-200';
+                        case 'Tyre Returned from Retread': return 'bg-pink-50 text-pink-700 border border-pink-200';
+                        case 'Tyre Scrapped': return 'bg-red-50 text-red-700 border border-red-200';
+                        default: return 'bg-slate-50 text-slate-700 border border-slate-200';
+                      }
+                    })();
+
+                    const oldPos = h.oldPosition || '';
+                    const newPos = h.newPosition || h.positionName || '';
+                    const posDisplay = oldPos && newPos ? `${oldPos} → ${newPos}` : (newPos || oldPos || 'N/A');
+
+                    const oldStat = h.oldStatus || '';
+                    const newStat = h.newStatus || (h.removedDate ? 'Removed' : 'Active');
+                    const statDisplay = oldStat && newStat ? `${oldStat} → ${newStat}` : (newStat || oldStat || 'N/A');
+
+                    const remarkDisplay = h.remarks || h.removalReason || 'Fitted / Active';
+
+                    return (
+                      <tr key={h.historyId || h.id} className="hover:bg-slate-50">
+                        <td className="py-2.5 font-bold text-slate-500">{(h.historyId || h.id || '').slice(0, 15)}</td>
+                        <td className="py-2.5 font-bold text-slate-900">{tNoDisplay}</td>
+                        <td className="py-2.5 font-bold text-blue-600">{vNoDisplay}</td>
+                        <td className="py-2.5">
+                          <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold ${mTypeColor}`}>
+                            {mType}
+                          </span>
+                        </td>
+                        <td className="py-2.5">{mDateDisplay}</td>
+                        <td className="py-2.5 font-bold text-slate-600">{odomDisplay.toLocaleString()} KM</td>
+                        <td className="py-2.5 font-sans">{posDisplay}</td>
+                        <td className="py-2.5 font-sans">
+                          <span className="px-1 py-0.5 bg-slate-100 text-slate-600 rounded text-[10px] font-bold">
+                            {statDisplay}
+                          </span>
+                        </td>
+                        <td className="py-2.5 font-sans font-bold text-slate-900">{h.supervisorName}</td>
+                        <td className="py-2.5 font-sans text-slate-500 italic text-right">{remarkDisplay}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
 

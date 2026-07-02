@@ -9,6 +9,7 @@ import {
   Wrench, 
   Disc, 
   User, 
+  Users,
   Phone, 
   MapPin, 
   AlertTriangle, 
@@ -73,13 +74,17 @@ export default function FleetVehiclesView({
   // Form Fields
   const [truckNumber, setTruckNumber] = useState('');
   const [manufacturer, setManufacturer] = useState<VehicleManufacturer>(VehicleManufacturer.TATA);
+  const [vehicleTemplate, setVehicleTemplate] = useState<string>('Tata (14-Wheelers)');
   const [supervisorName, setSupervisorName] = useState('Mustak');
+  const [foremanName, setForemanName] = useState('Ramesh');
   const [driverName, setDriverName] = useState('');
   const [mobileNumber, setMobileNumber] = useState('');
   const [currentLocation, setCurrentLocation] = useState('Jaipur, RJ');
   const [insuranceExpiry, setInsuranceExpiry] = useState('');
   const [fitnessExpiry, setFitnessExpiry] = useState('');
   const [permitExpiry, setPermitExpiry] = useState('');
+  const [eWayBillExpiry, setEWayBillExpiry] = useState('');
+  const [pucExpiry, setPucExpiry] = useState('');
   const [currentTripFrom, setCurrentTripFrom] = useState('');
   const [currentTripTo, setCurrentTripTo] = useState('');
   const [tripStartDate, setTripStartDate] = useState('');
@@ -92,18 +97,28 @@ export default function FleetVehiclesView({
     "Mustak", "Ajru", "Irshad", "Imtiyaz", "Sachin"
   ].filter(Boolean)));
 
+  // Get unique foreman names for auto-suggestion
+  const foremanSuggestions = Array.from(new Set([
+    ...vehicles.map(v => v.foremanName || ''),
+    "Ramesh", "Suresh", "Karan", "Vijay"
+  ].filter(Boolean)));
+
   // Open modal for adding a new truck
   const handleOpenAddModal = () => {
     setEditingVehicle(null);
     setTruckNumber('');
     setManufacturer(VehicleManufacturer.TATA);
+    setVehicleTemplate('Tata (14-Wheelers)');
     setSupervisorName('Mustak');
+    setForemanName('Ramesh');
     setDriverName('');
     setMobileNumber('');
     setCurrentLocation('Jaipur, RJ');
     setInsuranceExpiry(new Date(Date.now() + 1000 * 60 * 60 * 24 * 30).toISOString().split('T')[0]); // 30 days hence
     setFitnessExpiry(new Date(Date.now() + 1000 * 60 * 60 * 24 * 90).toISOString().split('T')[0]);  // 90 days hence
     setPermitExpiry(new Date(Date.now() + 1000 * 60 * 60 * 24 * 180).toISOString().split('T')[0]); // 180 days hence
+    setEWayBillExpiry('');
+    setPucExpiry('');
     setCurrentTripFrom('');
     setCurrentTripTo('');
     setTripStartDate(new Date().toISOString().split('T')[0]);
@@ -117,13 +132,23 @@ export default function FleetVehiclesView({
     setEditingVehicle(v);
     setTruckNumber(v.truckNumber);
     setManufacturer(v.manufacturer);
+    setVehicleTemplate(
+      v.vehicleTemplate || (
+        v.manufacturer === VehicleManufacturer.TATA
+          ? (v.tyresCount === 14 ? "Tata (14-Wheelers)" : "Tata (12-Wheelers)")
+          : (v.tyresCount === 14 ? "Ashok Leyland (14-Wheelers)" : "Ashok Leyland (12-Wheelers)")
+      )
+    );
     setSupervisorName(v.supervisorName);
+    setForemanName(v.foremanName || '');
     setDriverName(v.driverName);
     setMobileNumber(v.mobileNumber);
     setCurrentLocation(v.currentLocation);
     setInsuranceExpiry(v.insuranceExpiry || '');
     setFitnessExpiry(v.fitnessExpiry || '');
     setPermitExpiry(v.permitExpiry || '');
+    setEWayBillExpiry(v.eWayBillExpiry || '');
+    setPucExpiry(v.pucExpiry || '');
     setCurrentTripFrom(v.currentTripFrom || '');
     setCurrentTripTo(v.currentTripTo || '');
     setTripStartDate(v.tripStartDate || '');
@@ -137,26 +162,55 @@ export default function FleetVehiclesView({
     e.preventDefault();
     if (!truckNumber.trim()) return;
 
+    // Determine config parameters based on selected vehicle template
+    let targetManufacturer = VehicleManufacturer.TATA;
+    let targetTyresCount = 14;
+    let targetHasLiftAxle = true;
+    let targetWheelConfig = "14-Wheelers";
+
+    if (vehicleTemplate === "Tata (12-Wheelers)") {
+      targetManufacturer = VehicleManufacturer.TATA;
+      targetTyresCount = 12;
+      targetHasLiftAxle = false;
+      targetWheelConfig = "12-Wheelers";
+    } else if (vehicleTemplate === "Ashok Leyland (14-Wheelers)") {
+      targetManufacturer = VehicleManufacturer.ASHOK_LEYLAND;
+      targetTyresCount = 14;
+      targetHasLiftAxle = false;
+      targetWheelConfig = "14-Wheelers";
+    } else if (vehicleTemplate === "Ashok Leyland (12-Wheelers)") {
+      targetManufacturer = VehicleManufacturer.ASHOK_LEYLAND;
+      targetTyresCount = 12;
+      targetHasLiftAxle = false;
+      targetWheelConfig = "12-Wheelers";
+    }
+
     if (editingVehicle) {
       // Update
       setVehicles(prev => prev.map(v => {
         if (v.truckNumber === editingVehicle.truckNumber) {
-          const manufacturerChanged = v.manufacturer !== manufacturer;
+          const configChanged = v.manufacturer !== targetManufacturer || v.tyresCount !== targetTyresCount || v.hasLiftAxle !== targetHasLiftAxle;
           return {
             ...v,
             truckNumber: truckNumber.trim().toUpperCase(),
-            manufacturer,
-            tyresCount: manufacturer === VehicleManufacturer.TATA ? 14 : 12,
-            hasLiftAxle: manufacturer === VehicleManufacturer.TATA,
+            manufacturer: targetManufacturer,
+            tyresCount: targetTyresCount,
+            hasLiftAxle: targetHasLiftAxle,
+            vehicleTemplate,
+            wheelConfiguration: targetWheelConfig,
+            totalTyres: targetTyresCount,
             supervisorName,
+            foremanName: foremanName || '',
             driverName,
             mobileNumber,
             currentLocation,
             lastUpdated: new Date().toISOString(),
-            tyres: manufacturerChanged ? generateDefaultTyres(manufacturer) : v.tyres,
+            tyres: configChanged ? generateDefaultTyres(targetManufacturer, targetTyresCount, targetHasLiftAxle) : v.tyres,
             insuranceExpiry,
             fitnessExpiry,
             permitExpiry,
+            eWayBillExpiry: eWayBillExpiry || null,
+            pucExpiry: pucExpiry || null,
             currentTripFrom: currentTripFrom.trim(),
             currentTripTo: currentTripTo.trim(),
             tripStartDate,
@@ -175,18 +229,24 @@ export default function FleetVehiclesView({
 
       const newVehicle: Vehicle = {
         truckNumber: truckNumber.trim().toUpperCase(),
-        manufacturer,
-        tyresCount: manufacturer === VehicleManufacturer.TATA ? 14 : 12,
-        hasLiftAxle: manufacturer === VehicleManufacturer.TATA,
+        manufacturer: targetManufacturer,
+        tyresCount: targetTyresCount,
+        hasLiftAxle: targetHasLiftAxle,
+        vehicleTemplate,
+        wheelConfiguration: targetWheelConfig,
+        totalTyres: targetTyresCount,
         supervisorName,
+        foremanName: foremanName || 'Ramesh',
         driverName: driverName || "N/A",
         mobileNumber: mobileNumber || "N/A",
         currentLocation: currentLocation || "Jaipur, RJ",
         lastUpdated: new Date().toISOString(),
-        tyres: generateDefaultTyres(manufacturer),
+        tyres: generateDefaultTyres(targetManufacturer, targetTyresCount, targetHasLiftAxle),
         insuranceExpiry,
         fitnessExpiry,
         permitExpiry,
+        eWayBillExpiry: eWayBillExpiry || null,
+        pucExpiry: pucExpiry || null,
         currentTripFrom: currentTripFrom.trim(),
         currentTripTo: currentTripTo.trim(),
         tripStartDate,
@@ -314,6 +374,7 @@ export default function FleetVehiclesView({
       v.truckNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
       v.driverName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       v.supervisorName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (v.foremanName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
       v.currentLocation.toLowerCase().includes(searchTerm.toLowerCase());
       
     const matchesManufacturer = 
@@ -357,16 +418,16 @@ export default function FleetVehiclesView({
           />
         </div>
 
-        <div className="flex items-center space-x-2">
-          <span className="text-xs text-slate-400 font-bold uppercase tracking-wider">Manufacturer:</span>
-          <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200/50">
+        <div className="flex items-center space-x-2 overflow-x-auto w-full md:w-auto py-1 select-none">
+          <span className="text-xs text-slate-400 font-bold uppercase tracking-wider shrink-0">Manufacturer:</span>
+          <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200/50 flex-nowrap shrink-0 overflow-x-auto space-x-1 items-center">
             {['All', VehicleManufacturer.TATA, VehicleManufacturer.ASHOK_LEYLAND].map((manType) => (
               <button
                 key={manType}
                 onClick={() => setManufacturerFilter(manType)}
-                className={`px-3 py-1 text-xs rounded-lg transition font-medium ${
+                className={`px-3.5 py-1.5 text-xs rounded-lg transition font-bold whitespace-nowrap inline-flex items-center justify-center shrink-0 ${
                   manufacturerFilter === manType
-                    ? 'bg-white text-slate-900 shadow font-semibold'
+                    ? 'bg-white text-slate-900 shadow font-bold'
                     : 'text-slate-500 hover:text-slate-800'
                 }`}
               >
@@ -396,6 +457,8 @@ export default function FleetVehiclesView({
             const isInsuranceExpired = vehicle.insuranceExpiry && vehicle.insuranceExpiry < todayStr;
             const isFitnessExpired = vehicle.fitnessExpiry && vehicle.fitnessExpiry < todayStr;
             const isPermitExpired = vehicle.permitExpiry && vehicle.permitExpiry < todayStr;
+            const isEWayBillExpired = vehicle.eWayBillExpiry && vehicle.eWayBillExpiry < todayStr;
+            const isPucExpired = vehicle.pucExpiry && vehicle.pucExpiry < todayStr;
 
             return (
               <div 
@@ -403,57 +466,64 @@ export default function FleetVehiclesView({
                 className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden hover:shadow-md transition duration-200 flex flex-col justify-between"
               >
                 {/* Card Top Branding & Health */}
-                <div className="p-6 border-b border-slate-150/40 space-y-4">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h3 className="text-xl font-bold font-mono tracking-tight text-slate-900">
+                <div className="p-4 sm:p-6 border-b border-slate-150/40 space-y-4">
+                  <div className="flex flex-row items-start justify-between gap-3 w-full min-w-0">
+                    <div className="min-w-0 flex-1">
+                      <h3 className="text-xl font-bold font-mono tracking-tight text-slate-900 truncate">
                         {vehicle.truckNumber}
                       </h3>
-                      <div className="flex items-center space-x-2 mt-1">
-                        <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded ${
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1.5 text-xs text-slate-500 font-semibold">
+                        <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded whitespace-nowrap shrink-0 leading-normal ${
                           vehicle.manufacturer === VehicleManufacturer.TATA 
                             ? 'bg-blue-500/10 text-blue-600' 
                             : 'bg-amber-500/10 text-amber-600'
                         }`}>
                           {vehicle.manufacturer}
                         </span>
-                        <span className="text-xs text-slate-400">|</span>
-                        <span className="text-xs text-slate-500 font-semibold">{vehicle.tyresCount} Tyres</span>
+                        <span className="text-slate-300 select-none">|</span>
+                        <span className="whitespace-nowrap shrink-0">{vehicle.tyresCount} Tyres</span>
                         {vehicle.hasLiftAxle && (
                           <>
-                            <span className="text-xs text-slate-400">|</span>
-                            <span className="text-xs bg-purple-500/10 text-purple-600 font-semibold px-1 rounded">Lift Axle</span>
+                            <span className="text-slate-300 select-none">|</span>
+                            <span className="text-[10px] bg-purple-500/10 text-purple-600 font-bold px-1.5 py-0.5 rounded whitespace-nowrap shrink-0 uppercase tracking-wider leading-normal">
+                              Lift Axle
+                            </span>
                           </>
                         )}
                       </div>
+                      
+                      {/* Service status text placement on mobile if not enough space */}
+                      <p className="text-[10px] text-slate-400 font-bold uppercase mt-2 block sm:hidden">
+                        {serviceSummary.reason}
+                      </p>
                     </div>
 
                     {/* Alerts Status Badge - Dynamic Level indicator (Point 4) */}
-                    <div className="flex flex-col items-end gap-1">
+                    <div className="flex flex-col items-end gap-1 shrink-0 text-right">
                       {serviceSummary.level === 'red' && (
-                        <span className="bg-red-500 text-white px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase flex items-center gap-1 animate-pulse">
+                        <span className="bg-red-500 text-white px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase flex items-center gap-1 animate-pulse whitespace-nowrap shrink-0">
                           <AlertTriangle size={10} />
                           Overdue
                         </span>
                       )}
                       {serviceSummary.level === 'orange' && (
-                        <span className="bg-amber-500 text-white px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase flex items-center gap-1">
+                        <span className="bg-amber-500 text-white px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase flex items-center gap-1 whitespace-nowrap shrink-0">
                           <Clock size={10} />
                           Due Soon
                         </span>
                       )}
                       {serviceSummary.level === 'green' && (
-                        <span className="bg-emerald-500 text-white px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase flex items-center gap-1">
+                        <span className="bg-emerald-500 text-white px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase flex items-center gap-1 whitespace-nowrap shrink-0">
                           <FileCheck size={10} />
                           Upcoming
                         </span>
                       )}
                       {serviceSummary.level === 'neutral' && (
-                        <span className="bg-slate-100 text-slate-600 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase">
+                        <span className="bg-slate-100 text-slate-600 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase whitespace-nowrap shrink-0">
                           Current
                         </span>
                       )}
-                      <span className="text-[10px] text-slate-400 font-bold max-w-[150px] truncate">{serviceSummary.reason}</span>
+                      <span className="text-[10px] text-slate-400 font-bold max-w-[180px] truncate hidden sm:block">{serviceSummary.reason}</span>
                     </div>
                   </div>
 
@@ -476,47 +546,72 @@ export default function FleetVehiclesView({
                     </div>
                   </div>
 
-                  {/* Supervisor Name & Current location */}
+                  {/* Supervisor Name & Foreman Name */}
                   <div className="grid grid-cols-2 gap-4 pt-1">
                     <div className="flex items-center space-x-2 text-xs">
                       <Wrench size={14} className="text-slate-400" />
-                      <div>
-                        <p className="text-slate-400 uppercase font-bold text-[9px] tracking-wider leading-none">Supervisor Name</p>
-                        <p className="font-bold text-slate-800 mt-0.5">{vehicle.supervisorName}</p>
+                      <div className="overflow-hidden">
+                        <p className="text-slate-400 uppercase font-bold text-[9px] tracking-wider leading-none">Supervisor</p>
+                        <p className="font-bold text-slate-800 truncate mt-0.5">{vehicle.supervisorName}</p>
                       </div>
                     </div>
 
                     <div className="flex items-center space-x-2 text-xs">
-                      <MapPin size={14} className="text-slate-400" />
-                      <div>
-                        <p className="text-slate-400 uppercase font-bold text-[9px] tracking-wider leading-none">Last Location</p>
-                        <p className="font-semibold text-slate-700 mt-0.5">{vehicle.currentLocation}</p>
+                      <Users size={14} className="text-slate-400" />
+                      <div className="overflow-hidden">
+                        <p className="text-slate-400 uppercase font-bold text-[9px] tracking-wider leading-none">Foreman</p>
+                        <p className="font-bold text-slate-800 truncate mt-0.5">{vehicle.foremanName || 'N/A'}</p>
                       </div>
                     </div>
                   </div>
 
-                  {/* Regulatory Expiries (Insurance, Fitness, Permit) */}
-                  <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100 grid grid-cols-3 gap-2 text-center">
+                  {/* Current location */}
+                  <div className="grid grid-cols-2 gap-4 pt-1">
+                    <div className="flex items-center space-x-2 text-xs">
+                      <MapPin size={14} className="text-slate-400" />
+                      <div className="overflow-hidden">
+                        <p className="text-slate-400 uppercase font-bold text-[9px] tracking-wider leading-none">Last Location</p>
+                        <p className="font-semibold text-slate-700 truncate mt-0.5">{vehicle.currentLocation}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Regulatory Expiries (Insurance, Fitness, Permit, E-Way Bill, PUC) */}
+                  <div className="bg-slate-50 p-1.5 sm:p-2.5 rounded-xl border border-slate-100 grid grid-cols-5 gap-1 text-center">
                     <div>
-                      <p className="text-[8px] text-slate-450 font-bold uppercase tracking-wider">Insurance</p>
-                      <p className={`text-[11px] font-bold font-mono mt-0.5 ${isInsuranceExpired ? 'text-red-600' : 'text-slate-700'}`}>
-                        {vehicle.insuranceExpiry || 'N/A'}
+                      <p className="text-[7px] sm:text-[8px] text-slate-450 font-bold uppercase tracking-wider truncate">Insurance</p>
+                      <p className={`text-[9px] sm:text-[11px] font-bold font-mono mt-0.5 ${isInsuranceExpired ? 'text-red-600' : 'text-slate-700'}`}>
+                        {vehicle.insuranceExpiry || '--'}
                       </p>
-                      {isInsuranceExpired && <span className="text-[8px] bg-red-100 text-red-700 px-1 rounded uppercase font-bold">Expired</span>}
+                      {isInsuranceExpired && <span className="text-[7px] sm:text-[8px] bg-red-100 text-red-700 px-1 rounded uppercase font-bold block mt-0.5">Expired</span>}
                     </div>
                     <div>
-                      <p className="text-[8px] text-slate-450 font-bold uppercase tracking-wider">Fitness</p>
-                      <p className={`text-[11px] font-bold font-mono mt-0.5 ${isFitnessExpired ? 'text-red-600' : 'text-slate-700'}`}>
-                        {vehicle.fitnessExpiry || 'N/A'}
+                      <p className="text-[7px] sm:text-[8px] text-slate-450 font-bold uppercase tracking-wider truncate">Fitness</p>
+                      <p className={`text-[9px] sm:text-[11px] font-bold font-mono mt-0.5 ${isFitnessExpired ? 'text-red-600' : 'text-slate-700'}`}>
+                        {vehicle.fitnessExpiry || '--'}
                       </p>
-                      {isFitnessExpired && <span className="text-[8px] bg-red-100 text-red-700 px-1 rounded uppercase font-bold">Expired</span>}
+                      {isFitnessExpired && <span className="text-[7px] sm:text-[8px] bg-red-100 text-red-700 px-1 rounded uppercase font-bold block mt-0.5">Expired</span>}
                     </div>
                     <div>
-                      <p className="text-[8px] text-slate-450 font-bold uppercase tracking-wider">Permit</p>
-                      <p className={`text-[11px] font-bold font-mono mt-0.5 ${isPermitExpired ? 'text-red-600' : 'text-slate-700'}`}>
-                        {vehicle.permitExpiry || 'N/A'}
+                      <p className="text-[7px] sm:text-[8px] text-slate-450 font-bold uppercase tracking-wider truncate">Permit</p>
+                      <p className={`text-[9px] sm:text-[11px] font-bold font-mono mt-0.5 ${isPermitExpired ? 'text-red-600' : 'text-slate-700'}`}>
+                        {vehicle.permitExpiry || '--'}
                       </p>
-                      {isPermitExpired && <span className="text-[8px] bg-red-100 text-red-700 px-1 rounded uppercase font-bold">Expired</span>}
+                      {isPermitExpired && <span className="text-[7px] sm:text-[8px] bg-red-100 text-red-700 px-1 rounded uppercase font-bold block mt-0.5">Expired</span>}
+                    </div>
+                    <div>
+                      <p className="text-[7px] sm:text-[8px] text-slate-450 font-bold uppercase tracking-wider truncate">E-Way Bill</p>
+                      <p className={`text-[9px] sm:text-[11px] font-bold font-mono mt-0.5 ${isEWayBillExpired ? 'text-red-600' : 'text-slate-700'}`}>
+                        {vehicle.eWayBillExpiry || '--'}
+                      </p>
+                      {isEWayBillExpired && <span className="text-[7px] sm:text-[8px] bg-red-100 text-red-700 px-1 rounded uppercase font-bold block mt-0.5">Expired</span>}
+                    </div>
+                    <div>
+                      <p className="text-[7px] sm:text-[8px] text-slate-450 font-bold uppercase tracking-wider truncate">PUC</p>
+                      <p className={`text-[9px] sm:text-[11px] font-bold font-mono mt-0.5 ${isPucExpired ? 'text-red-600' : 'text-slate-700'}`}>
+                        {vehicle.pucExpiry || '--'}
+                      </p>
+                      {isPucExpired && <span className="text-[7px] sm:text-[8px] bg-red-100 text-red-700 px-1 rounded uppercase font-bold block mt-0.5">Expired</span>}
                     </div>
                   </div>
 
@@ -863,19 +958,15 @@ export default function FleetVehiclesView({
                   Vehicle Manufacturer Template (Tyre Setup)
                 </label>
                 <select
-                  value={manufacturer}
-                  onChange={(e) => setManufacturer(e.target.value as VehicleManufacturer)}
+                  value={vehicleTemplate}
+                  onChange={(e) => setVehicleTemplate(e.target.value)}
                   className="w-full bg-slate-50 border border-slate-200/50 px-3 py-2.5 rounded-xl text-sm font-bold"
                 >
-                  <option value={VehicleManufacturer.TATA}>TATA Setup (14-Wheeler chassis with Lift Axle Enabled)</option>
-                  <option value={VehicleManufacturer.ASHOK_LEYLAND}>Ashok Leyland Setup (12-Wheeler dually chassis, HIDE Lift Axle)</option>
+                  <option value="Tata (14-Wheelers)">Tata (14-Wheelers)</option>
+                  <option value="Tata (12-Wheelers)">Tata (12-Wheelers)</option>
+                  <option value="Ashok Leyland (14-Wheelers)">Ashok Leyland (14-Wheelers)</option>
+                  <option value="Ashok Leyland (12-Wheelers)">Ashok Leyland (12-Wheelers)</option>
                 </select>
-                <p className="text-[11px] text-slate-400 mt-1 italic font-medium">
-                  {manufacturer === VehicleManufacturer.TATA 
-                    ? "✓ Tata Template Config: Shows standard dually lift axle positions dynamically." 
-                    : "✓ Ashok Leyland Template Config: Hides lift axles from layout dashboard dynamically."
-                  }
-                </p>
               </div>
 
               {/* Driver & Mobile */}
@@ -908,7 +999,7 @@ export default function FleetVehiclesView({
                 </div>
               </div>
 
-              {/* Supervisor Name & Last Location */}
+              {/* Supervisor Name & Foreman Name */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1.5">
@@ -931,17 +1022,38 @@ export default function FleetVehiclesView({
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1.5">
-                    Current Location / Station
+                    Foreman Name
                   </label>
                   <input
                     type="text"
                     required
-                    placeholder="e.g., Jaipur, RJ"
-                    value={currentLocation}
-                    onChange={(e) => setCurrentLocation(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200/50 px-3 py-2 rounded-xl text-sm"
+                    value={foremanName}
+                    onChange={(e) => setForemanName(e.target.value)}
+                    placeholder="Enter Foreman Name"
+                    list="fleet-foremen-list"
+                    className="w-full bg-slate-50 border border-slate-200/50 px-3 py-2.5 rounded-xl text-sm font-bold focus:outline-none focus:ring-1 focus:ring-blue-600"
                   />
+                  <datalist id="fleet-foremen-list">
+                    {foremanSuggestions.map(opt => (
+                      <option key={opt} value={opt} />
+                    ))}
+                  </datalist>
                 </div>
+              </div>
+
+              {/* Current Location / Station */}
+              <div>
+                <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1.5">
+                  Current Location / Station
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g., Jaipur, RJ"
+                  value={currentLocation}
+                  onChange={(e) => setCurrentLocation(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200/50 px-3 py-2 rounded-xl text-sm"
+                />
               </div>
 
               {/* Point 9 Regulatory Expiry Dates */}
@@ -949,7 +1061,7 @@ export default function FleetVehiclesView({
                 <p className="text-xs font-bold text-slate-750 uppercase tracking-wide border-b border-slate-200 pb-1">
                   Point 9: RTO Regulatory Compliance Renewals
                 </p>
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-5 gap-3">
                   <div>
                     <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
                       Insurance Expiry
@@ -983,6 +1095,28 @@ export default function FleetVehiclesView({
                       required
                       value={permitExpiry}
                       onChange={(e) => setPermitExpiry(e.target.value)}
+                      className="w-full bg-white border border-slate-200 px-2 py-1.5 rounded-lg text-xs"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+                      E-Way Bill Expiry
+                    </label>
+                    <input
+                      type="date"
+                      value={eWayBillExpiry}
+                      onChange={(e) => setEWayBillExpiry(e.target.value)}
+                      className="w-full bg-white border border-slate-200 px-2 py-1.5 rounded-lg text-xs"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+                      PUC Expiry
+                    </label>
+                    <input
+                      type="date"
+                      value={pucExpiry}
+                      onChange={(e) => setPucExpiry(e.target.value)}
                       className="w-full bg-white border border-slate-200 px-2 py-1.5 rounded-lg text-xs"
                     />
                   </div>

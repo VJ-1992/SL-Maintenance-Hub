@@ -9,6 +9,7 @@ import NotificationCenterView from './components/NotificationCenterView';
 import { Vehicle, ServiceLog, TyreMaster, TyreHistory, TyreMovement, TyreInspection, TyreExpense, RetreadRecord, ServiceSchedule, CentralNotification, TyreMasterStatus, TyreStatus } from './types';
 import { PRESET_VEHICLES, INITIAL_SERVICE_LOGS, INITIAL_TYRES, INITIAL_TYRE_HISTORY, INITIAL_TYRE_MOVEMENTS, INITIAL_TYRE_INSPECTIONS, INITIAL_TYRE_EXPENSES, INITIAL_RETREAD_RECORDS, INITIAL_SERVICE_SCHEDULES, INITIAL_NOTIFICATIONS } from './data/presets';
 import { ensureSignedIn, fetchCollection, writeDocument, removeDocument } from './services/firebase';
+import { Menu, Search, Bell, Settings } from 'lucide-react';
 
 function sanitizeTyre(t: any): TyreMaster {
   const serialNumber = (t.serialNumber || '').trim().toUpperCase();
@@ -108,6 +109,51 @@ function sanitizeServiceLog(log: any): ServiceLog {
 export default function App() {
   const [tab, setTab] = useState<string>('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(false);
+  const [scrolled, setScrolled] = useState<boolean>(false);
+  const [headerTitle, setHeaderTitle] = useState<{ title: string; subtitle?: string }>({
+    title: 'Dashboard',
+    subtitle: 'Fleet Operations Overview'
+  });
+
+  useEffect(() => {
+    const handleScroll = () => {
+      if (window.scrollY > 10) {
+        setScrolled(true);
+      } else {
+        setScrolled(false);
+      }
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  useEffect(() => {
+    switch (tab) {
+      case 'dashboard':
+        setHeaderTitle({ title: 'Dashboard', subtitle: 'Fleet Operations Overview' });
+        break;
+      case 'fleet':
+        setHeaderTitle({ title: 'Fleet Vehicles', subtitle: 'Manage Registered Trucks' });
+        break;
+      case 'service':
+        setHeaderTitle({ title: 'Service Logs', subtitle: 'Maintenance History' });
+        break;
+      case 'tyres':
+        setHeaderTitle({ title: 'Tyre Management', subtitle: 'Tyre Lifecycle Monitoring' });
+        break;
+      case 'notifications':
+        setHeaderTitle({ title: 'Notification Center', subtitle: 'Recent alerts & events' });
+        break;
+      case 'reports':
+        setHeaderTitle({ title: 'Reports', subtitle: 'Analytics & Expenses' });
+        break;
+      case 'settings':
+        setHeaderTitle({ title: 'Settings', subtitle: 'Application Configuration' });
+        break;
+      default:
+        setHeaderTitle({ title: 'Dashboard', subtitle: 'Fleet Operations Overview' });
+    }
+  }, [tab]);
 
   // Cross-view state synchronization: which vehicle is selected when jumping to the Tyre Management tab!
   const [selectedTruckNumForTyres, setSelectedTruckNumForTyres] = useState<string>('');
@@ -122,27 +168,11 @@ export default function App() {
   const [tyres, setTyres] = useState<TyreMaster[]>([]);
   const [isTyresLoaded, setIsTyresLoaded] = useState<boolean>(false);
 
-  const [tyreHistory, setTyreHistory] = useState<TyreHistory[]>(() => {
-    try {
-      const stored = localStorage.getItem('sl_tyre_history');
-      const parsed = stored ? JSON.parse(stored) : INITIAL_TYRE_HISTORY;
-      const unique = Array.from(new Map(parsed.map((item: TyreHistory) => [item.id, item])).values());
-      return unique;
-    } catch {
-      return INITIAL_TYRE_HISTORY;
-    }
-  });
+  const [tyreHistory, setTyreHistory] = useState<TyreHistory[]>([]);
+  const [isTyreHistoryLoaded, setIsTyreHistoryLoaded] = useState<boolean>(false);
 
-  const [tyreMovements, setTyreMovements] = useState<TyreMovement[]>(() => {
-    try {
-      const stored = localStorage.getItem('sl_tyre_movements');
-      const parsed = stored ? JSON.parse(stored) : INITIAL_TYRE_MOVEMENTS;
-      const unique = Array.from(new Map(parsed.map((item: TyreMovement) => [item.id, item])).values());
-      return unique;
-    } catch {
-      return INITIAL_TYRE_MOVEMENTS;
-    }
-  });
+  const [tyreMovements, setTyreMovements] = useState<TyreMovement[]>([]);
+  const [isTyreMovementsLoaded, setIsTyreMovementsLoaded] = useState<boolean>(false);
 
   const [tyreInspections, setTyreInspections] = useState<TyreInspection[]>(() => {
     try {
@@ -463,21 +493,253 @@ export default function App() {
     }
   }, [serviceLogs, isServiceLogsLoaded]);
 
+  // Load tyre history from Firestore on mount
   useEffect(() => {
+    const loadInitialTyreHistory = async () => {
+      try {
+        await ensureSignedIn();
+        console.log("Firestore Connected - Tyre History");
+
+        const firestoreHist = await fetchCollection<any>('tyreHistory');
+
+        if (firestoreHist && firestoreHist.length > 0) {
+          const parsed: TyreHistory[] = firestoreHist.map(h => ({
+            historyId: h.historyId || h.id || '',
+            vehicleNo: h.vehicleNo || h.truckNumber || '',
+            tyreNumber: h.tyreNumber || '',
+            serialNumber: h.serialNumber || '',
+            oldPosition: h.oldPosition || '',
+            newPosition: h.newPosition || h.positionName || '',
+            movementType: h.movementType || (h.removedDate ? 'Tyre Removed' : 'Tyre Installed'),
+            movementDate: h.movementDate || h.installedDate || '',
+            odometer: typeof h.odometer === 'number' ? h.odometer : (h.kmAtInstallation || 0),
+            supervisorName: h.supervisorName || '',
+            remarks: h.remarks || h.removalReason || '',
+            oldStatus: h.oldStatus || '',
+            newStatus: h.newStatus || '',
+            // Backwards compatibility properties
+            id: h.historyId || h.id || '',
+            truckNumber: h.vehicleNo || h.truckNumber || '',
+            positionId: h.positionId || '',
+            positionName: h.newPosition || h.positionName || '',
+            installedDate: h.movementDate || h.installedDate || '',
+            removedDate: h.removedDate || '',
+            kmAtInstallation: typeof h.kmAtInstallation === 'number' ? h.kmAtInstallation : (typeof h.odometer === 'number' ? h.odometer : 0),
+            kmAtRemoval: h.kmAtRemoval || 0,
+            totalKmRun: h.totalKmRun || 0,
+            removalReason: h.remarks || h.removalReason || ''
+          }));
+          const unique = Array.from(new Map(parsed.map((item: TyreHistory) => [item.historyId, item])).values());
+          setTyreHistory(unique);
+          console.log("Tyre History Loaded from Firestore:", unique.length);
+        } else {
+          // Import INITIAL_TYRE_HISTORY since collection is empty
+          console.log("Seeding INITIAL_TYRE_HISTORY to Firestore...");
+          const seeded: TyreHistory[] = [];
+          for (const item of INITIAL_TYRE_HISTORY) {
+            const mapped = {
+              historyId: item.historyId || item.id || '',
+              vehicleNo: item.vehicleNo || item.truckNumber || '',
+              tyreNumber: item.tyreNumber || '',
+              serialNumber: item.serialNumber || '',
+              oldPosition: item.oldPosition || '',
+              newPosition: item.newPosition || item.positionName || '',
+              movementType: item.movementType || 'Tyre Installed',
+              movementDate: item.movementDate || item.installedDate || '',
+              odometer: item.odometer || item.kmAtInstallation || 0,
+              supervisorName: item.supervisorName || '',
+              remarks: item.remarks || item.removalReason || '',
+              oldStatus: item.oldStatus || '',
+              newStatus: item.newStatus || ''
+            };
+            await writeDocument('tyreHistory', mapped.historyId, mapped);
+            seeded.push(item);
+          }
+          setTyreHistory(seeded);
+          console.log("Tyre History Seeded & Loaded");
+        }
+      } catch (error) {
+        console.error("Error loading tyre history from Firestore:", error);
+        setTyreHistory(INITIAL_TYRE_HISTORY);
+      } finally {
+        setIsTyreHistoryLoaded(true);
+      }
+    };
+
+    loadInitialTyreHistory();
+  }, []);
+
+  // Sync tyreHistory state modifications to Firestore
+  useEffect(() => {
+    if (!isTyreHistoryLoaded) return;
+
+    const syncTyreHistoryToFirestore = async () => {
+      try {
+        const dbHist = await fetchCollection<any>('tyreHistory');
+        const dbIds = new Set(dbHist ? dbHist.map(h => h.historyId) : []);
+        const currentIds = new Set(tyreHistory.map(h => h.historyId));
+
+        for (const item of tyreHistory) {
+          const mapped = {
+            historyId: item.historyId || item.id || '',
+            vehicleNo: item.vehicleNo || item.truckNumber || '',
+            tyreNumber: item.tyreNumber || '',
+            serialNumber: item.serialNumber || '',
+            oldPosition: item.oldPosition || '',
+            newPosition: item.newPosition || item.positionName || '',
+            movementType: item.movementType || 'Tyre Installed',
+            movementDate: item.movementDate || item.installedDate || '',
+            odometer: item.odometer || item.kmAtInstallation || 0,
+            supervisorName: item.supervisorName || '',
+            remarks: item.remarks || item.removalReason || '',
+            oldStatus: item.oldStatus || '',
+            newStatus: item.newStatus || ''
+          };
+          await writeDocument('tyreHistory', mapped.historyId, mapped);
+        }
+
+        for (const id of dbIds) {
+          if (id && !currentIds.has(id)) {
+            await removeDocument('tyreHistory', id);
+          }
+        }
+      } catch (error) {
+        console.error("Error syncing tyre history to Firestore:", error);
+      }
+    };
+
+    syncTyreHistoryToFirestore();
+
     try {
       localStorage.setItem('sl_tyre_history', JSON.stringify(tyreHistory));
     } catch (e) {
       console.warn("Storage limits or disabled storage.", e);
     }
-  }, [tyreHistory]);
+  }, [tyreHistory, isTyreHistoryLoaded]);
 
+  // Load tyre movements from Firestore on mount
   useEffect(() => {
+    const loadInitialTyreMovements = async () => {
+      try {
+        await ensureSignedIn();
+        console.log("Firestore Connected - Tyre Movements");
+
+        const firestoreMove = await fetchCollection<any>('tyreMovements');
+
+        if (firestoreMove && firestoreMove.length > 0) {
+          const parsed: TyreMovement[] = firestoreMove.map(m => ({
+            movementId: m.movementId || m.id || '',
+            tyreNumber: m.tyreNumber || m.serialNumber || '',
+            vehicleFrom: m.vehicleFrom || m.sourceVehicle || '',
+            vehicleTo: m.vehicleTo || m.destinationVehicle || '',
+            positionFrom: m.positionFrom || m.sourcePosition || '',
+            positionTo: m.positionTo || m.destinationPosition || '',
+            movementDate: m.movementDate || (m.date ? m.date.split(' ')[0] : ''),
+            odometer: typeof m.odometer === 'number' ? m.odometer : 0,
+            supervisorName: m.supervisorName || '',
+            reason: m.reason || '',
+
+            // Backwards compatibility properties
+            id: m.movementId || m.id || '',
+            serialNumber: m.tyreNumber || m.serialNumber || '',
+            sourceVehicle: m.vehicleFrom || m.sourceVehicle || '',
+            destinationVehicle: m.vehicleTo || m.destinationVehicle || '',
+            sourcePosition: m.positionFrom || m.sourcePosition || '',
+            destinationPosition: m.positionTo || m.destinationPosition || '',
+            date: m.date || `${m.movementDate || ''} 00:00`
+          }));
+          const unique = Array.from(new Map(parsed.map((item: TyreMovement) => [item.movementId, item])).values());
+          setTyreMovements(unique);
+          console.log("Tyre Movements Loaded from Firestore:", unique.length);
+        } else {
+          // Import INITIAL_TYRE_MOVEMENTS since collection is empty
+          console.log("Seeding INITIAL_TYRE_MOVEMENTS to Firestore...");
+          const seeded: TyreMovement[] = [];
+          for (const item of INITIAL_TYRE_MOVEMENTS) {
+            const mapped = {
+              movementId: item.movementId || item.id || '',
+              tyreNumber: item.tyreNumber || item.serialNumber || '',
+              vehicleFrom: item.vehicleFrom || item.sourceVehicle || '',
+              vehicleTo: item.vehicleTo || item.destinationVehicle || '',
+              positionFrom: item.positionFrom || item.sourcePosition || '',
+              positionTo: item.positionTo || item.destinationPosition || '',
+              movementDate: item.movementDate || (item.date ? item.date.split(' ')[0] : ''),
+              odometer: typeof item.odometer === 'number' ? item.odometer : 0,
+              supervisorName: item.supervisorName || '',
+              reason: item.reason || 'Routine replacement / rotation'
+            };
+            await writeDocument('tyreMovements', mapped.movementId, mapped);
+            
+            seeded.push({
+              ...item,
+              ...mapped,
+              id: mapped.movementId,
+              serialNumber: mapped.tyreNumber,
+              sourceVehicle: mapped.vehicleFrom,
+              destinationVehicle: mapped.vehicleTo,
+              sourcePosition: mapped.positionFrom,
+              destinationPosition: mapped.positionTo,
+              date: item.date || `${mapped.movementDate} 00:00`
+            });
+          }
+          setTyreMovements(seeded);
+          console.log("Tyre Movements Seeded & Loaded");
+        }
+      } catch (error) {
+        console.error("Error loading tyre movements from Firestore:", error);
+        setTyreMovements(INITIAL_TYRE_MOVEMENTS);
+      } finally {
+        setIsTyreMovementsLoaded(true);
+      }
+    };
+
+    loadInitialTyreMovements();
+  }, []);
+
+  // Sync tyreMovements state modifications to Firestore
+  useEffect(() => {
+    if (!isTyreMovementsLoaded) return;
+
+    const syncTyreMovementsToFirestore = async () => {
+      try {
+        const dbMove = await fetchCollection<any>('tyreMovements');
+        const dbIds = new Set(dbMove ? dbMove.map(m => m.movementId) : []);
+        const currentIds = new Set(tyreMovements.map(m => m.movementId));
+
+        for (const item of tyreMovements) {
+          const mapped = {
+            movementId: item.movementId || item.id || '',
+            tyreNumber: item.tyreNumber || item.serialNumber || '',
+            vehicleFrom: item.vehicleFrom || item.sourceVehicle || '',
+            vehicleTo: item.vehicleTo || item.destinationVehicle || '',
+            positionFrom: item.positionFrom || item.sourcePosition || '',
+            positionTo: item.positionTo || item.destinationPosition || '',
+            movementDate: item.movementDate || (item.date ? item.date.split(' ')[0] : ''),
+            odometer: typeof item.odometer === 'number' ? item.odometer : 0,
+            supervisorName: item.supervisorName || '',
+            reason: item.reason || 'Routine replacement / rotation'
+          };
+          await writeDocument('tyreMovements', mapped.movementId, mapped);
+        }
+
+        for (const id of dbIds) {
+          if (id && !currentIds.has(id)) {
+            await removeDocument('tyreMovements', id);
+          }
+        }
+      } catch (error) {
+        console.error("Error syncing tyre movements to Firestore:", error);
+      }
+    };
+
+    syncTyreMovementsToFirestore();
+
     try {
       localStorage.setItem('sl_tyre_movements', JSON.stringify(tyreMovements));
     } catch (e) {
       console.warn("Storage limits or disabled storage.", e);
     }
-  }, [tyreMovements]);
+  }, [tyreMovements, isTyreMovementsLoaded]);
 
   useEffect(() => {
     try {
@@ -644,6 +906,66 @@ export default function App() {
               date: todayStr,
               isRead: false,
               severity: 'medium'
+            });
+          }
+        }
+      }
+
+      if (vehicle.eWayBillExpiry) {
+        if (vehicle.eWayBillExpiry < todayStr) {
+          autoNotifs.push({
+            id: `AUTO_EWAY_EXPIRY_${vehicle.truckNumber}_${vehicle.eWayBillExpiry}`,
+            truckNumber: vehicle.truckNumber,
+            type: 'E-Way Bill Expiry',
+            title: `E-Way Bill Expired - ${vehicle.truckNumber}`,
+            message: `Vehicle E-Way Bill expired on ${vehicle.eWayBillExpiry}! Action is required immediately.`,
+            date: todayStr,
+            isRead: false,
+            severity: 'high'
+          });
+        } else {
+          const expTime = new Date(vehicle.eWayBillExpiry).getTime();
+          const diffDays = Math.ceil((expTime - today.getTime()) / (1000 * 60 * 60 * 24));
+          if (diffDays <= 15) {
+            autoNotifs.push({
+              id: `AUTO_EWAY_EXPIRY_${vehicle.truckNumber}_${vehicle.eWayBillExpiry}`,
+              truckNumber: vehicle.truckNumber,
+              type: 'E-Way Bill Expiry',
+              title: `E-Way Bill Expiring Soon - ${vehicle.truckNumber}`,
+              message: `Vehicle E-Way Bill will expire on ${vehicle.eWayBillExpiry} (in ${diffDays} days).`,
+              date: todayStr,
+              isRead: false,
+              severity: 'medium'
+            });
+          }
+        }
+      }
+
+      if (vehicle.pucExpiry) {
+        if (vehicle.pucExpiry < todayStr) {
+          autoNotifs.push({
+            id: `AUTO_PUC_EXPIRY_${vehicle.truckNumber}_${vehicle.pucExpiry}`,
+            truckNumber: vehicle.truckNumber,
+            type: 'PUC Expiry',
+            title: `PUC Certificate Expired - ${vehicle.truckNumber}`,
+            message: `Vehicle PUC certificate expired on ${vehicle.pucExpiry}! Pollution check is required immediately.`,
+            date: todayStr,
+            isRead: false,
+            severity: 'high'
+          });
+        } else {
+          const expTime = new Date(vehicle.pucExpiry).getTime();
+          const diffDays = Math.ceil((expTime - today.getTime()) / (1000 * 60 * 60 * 24));
+          if (diffDays <= 30) {
+            autoNotifs.push({
+              id: `AUTO_PUC_EXPIRY_${vehicle.truckNumber}_${vehicle.pucExpiry}_${diffDays}`,
+              truckNumber: vehicle.truckNumber,
+              type: 'PUC Expiry',
+              title: `PUC Expiring Soon - ${vehicle.truckNumber}`,
+              message: `Vehicle PUC certificate will expire on ${vehicle.pucExpiry} (in ${diffDays} days).`,
+              date: todayStr,
+              isRead: false,
+              severity: diffDays <= 7 ? 'high' : 'medium'
             });
           }
         }
@@ -924,6 +1246,21 @@ export default function App() {
             setTyreExpenses={setTyreExpenses}
             retreadRecords={retreadRecords}
             setRetreadRecords={setRetreadRecords}
+            onSubTabChange={(subTab) => {
+              if (subTab === 'master') {
+                setHeaderTitle({ title: 'Tyre Master Database', subtitle: 'Tyre Master Database Registry' });
+              } else if (subTab === 'history') {
+                setHeaderTitle({ title: 'Tyre Journey History', subtitle: 'Tyre Lifecycle Monitoring' });
+              } else if (subTab === 'inspection') {
+                setHeaderTitle({ title: 'Inspections Registry', subtitle: 'Tyre Inspections & Readings' });
+              } else if (subTab === 'retread') {
+                setHeaderTitle({ title: 'Retread Hub', subtitle: 'Tyre Retreading Lifecycle' });
+              } else if (subTab === 'analytics') {
+                setHeaderTitle({ title: 'Tyre Analytics', subtitle: 'Analytics & Performance' });
+              } else {
+                setHeaderTitle({ title: 'Tyre Management', subtitle: 'Tyre Lifecycle Monitoring' });
+              }
+            }}
           />
         );
       case 'notifications':
@@ -977,39 +1314,73 @@ export default function App() {
       <div className="flex-1 flex flex-col min-w-0">
         
         {/* Top Navbar details */}
-        <header className="bg-white border-b border-slate-200 sticky top-0 z-30 px-8 flex justify-between items-center h-16">
-          <div className="flex items-center space-x-2 text-sm text-slate-500">
-            <span>Fleet Hub</span>
-            <span className="opacity-40">/</span>
-            <span className="text-slate-900 font-bold uppercase tracking-wide text-xs">
-              {tab === 'dashboard' && 'Dashboard Hub'}
-              {tab === 'fleet' && 'Fleet Vehicles Registry'}
-              {tab === 'service' && 'Service Logs Archive'}
-              {tab === 'tyres' && 'Tyre Management System'}
-              {tab === 'notifications' && 'Notification Center'}
-              {tab === 'reports' && 'Operational Reports & Audits'}
-            </span>
-          </div>
+        <header 
+          style={{
+            height: 'calc(60px + env(safe-area-inset-top, 0px))',
+            paddingTop: 'env(safe-area-inset-top, 0px)',
+          }}
+          className={`w-full flex-shrink-0 bg-white border-b border-slate-200/80 px-4 md:px-8 sticky md:static top-0 md:top-auto z-[1000] md:z-auto flex items-center transition-all duration-200 ${
+            scrolled ? 'max-md:shadow-[0_2px_12px_rgba(0,0,0,0.08)] max-md:border-b-transparent' : ''
+          }`}
+        >
+          <div className="flex items-center justify-between w-full h-full">
+            {/* Left/Center Part */}
+            <div className="flex items-center gap-[14px] min-w-0 flex-1">
+              {/* Hamburger Menu Icon */}
+              <button
+                onClick={() => setSidebarOpen(true)}
+                className="md:hidden p-1.5 -ml-1 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors focus:outline-none shrink-0"
+                aria-label="Open sidebar"
+              >
+                <Menu size={20} className="stroke-[2.5]" />
+              </button>
 
-          <div className="flex items-center space-x-4">
-            {/* Quick stats totals */}
-            <div className="hidden sm:flex items-center space-x-2 text-[11px] text-slate-500 font-bold bg-slate-100 px-3 py-1.5 rounded border border-slate-200">
-              <span className="uppercase tracking-wider">Managed Wheels:</span>
-              <span className="text-blue-600 font-mono font-bold">
-                {vehicles.reduce((sum, v) => sum + v.tyresCount, 0)}
-              </span>
+              {/* Title and Subtitle */}
+              <div className="flex flex-col min-w-0 select-none">
+                <h1 className="text-[18px] font-bold text-slate-900 leading-none tracking-tight truncate">
+                  {headerTitle.title}
+                </h1>
+                {headerTitle.subtitle && (
+                  <span className="text-[12px] text-slate-500 font-medium tracking-tight mt-0.5 truncate max-[359px]:hidden">
+                    {headerTitle.subtitle}
+                  </span>
+                )}
+              </div>
             </div>
-            
-            <div className="flex items-center space-x-2">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600 bg-blue-50 px-2.5 py-1 rounded border border-blue-200">
-                Hub Active
-              </span>
+
+            {/* Right: Reserve space for future action icons (Notifications, Search, Settings) */}
+            <div className="flex items-center gap-1 sm:gap-2 text-slate-400 shrink-0">
+              <button 
+                className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-xl transition-colors duration-150" 
+                aria-label="Search"
+                title="Search (Coming Soon)"
+              >
+                <Search size={18} />
+              </button>
+              <button 
+                onClick={() => setTab('notifications')}
+                className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-xl transition-colors duration-150 relative" 
+                aria-label="Notifications"
+                title="Notifications"
+              >
+                <Bell size={18} />
+                {notifications.filter(n => !n.isRead).length > 0 && (
+                  <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+                )}
+              </button>
+              <button 
+                className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-xl transition-colors duration-150" 
+                aria-label="Settings"
+                title="Settings (Coming Soon)"
+              >
+                <Settings size={18} />
+              </button>
             </div>
           </div>
         </header>
 
         {/* Dynamic page container */}
-        <main className="flex-1 p-8 max-w-7xl w-full mx-auto space-y-6">
+        <main className="flex-1 p-4 sm:p-6 md:p-8 max-w-7xl w-full mx-auto space-y-6">
           {renderTabContent()}
         </main>
 

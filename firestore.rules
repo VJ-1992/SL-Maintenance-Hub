@@ -31,7 +31,7 @@ service cloud.firestore {
 
     function isValidVehicle(data) {
       return data.keys().hasAll(['truckNumber', 'manufacturer', 'tyresCount', 'hasLiftAxle', 'supervisorName', 'driverName', 'currentLocation', 'lastUpdated'])
-        && data.keys().size() <= 20
+        && data.keys().size() <= 25
         && data.truckNumber is string && data.truckNumber.size() > 0 && data.truckNumber.size() <= 50
         && data.manufacturer is string && (data.manufacturer == 'Tata' || data.manufacturer == 'Ashok Leyland')
         && data.tyresCount is number && (data.tyresCount == 12 || data.tyresCount == 14)
@@ -39,7 +39,16 @@ service cloud.firestore {
         && data.supervisorName is string && data.supervisorName.size() > 0 && data.supervisorName.size() <= 100
         && data.driverName is string && data.driverName.size() <= 100
         && data.currentLocation is string && data.currentLocation.size() <= 200
-        && data.lastUpdated is string;
+        && data.lastUpdated is string
+        && (!data.keys().hasAny(['vehicleTemplate']) || data.vehicleTemplate is string)
+        && (!data.keys().hasAny(['foremanName']) || (data.foremanName is string && data.foremanName.size() <= 100))
+        && (!data.keys().hasAny(['wheelConfiguration']) || data.wheelConfiguration is string)
+        && (!data.keys().hasAny(['totalTyres']) || data.totalTyres is number)
+        && (!data.keys().hasAny(['insuranceExpiry']) || data.insuranceExpiry is string)
+        && (!data.keys().hasAny(['fitnessExpiry']) || data.fitnessExpiry is string)
+        && (!data.keys().hasAny(['permitExpiry']) || data.permitExpiry is string)
+        && (!data.keys().hasAny(['eWayBillExpiry']) || data.eWayBillExpiry is string)
+        && (!data.keys().hasAny(['pucExpiry']) || data.pucExpiry is string);
     }
 
     function isValidServiceLog(data) {
@@ -72,21 +81,23 @@ service cloud.firestore {
     }
 
     function isValidTyreHistory(data) {
-      return data.keys().hasAll(['id', 'serialNumber', 'truckNumber', 'positionId', 'positionName', 'installedDate', 'kmAtInstallation', 'supervisorName'])
+      return data.keys().hasAll(['historyId', 'vehicleNo', 'serialNumber', 'movementType', 'movementDate', 'odometer', 'supervisorName'])
         && data.keys().size() <= 15
-        && data.id is string && data.id.size() > 0 && data.id.size() <= 128
+        && data.historyId is string && data.historyId.size() > 0 && data.historyId.size() <= 128
+        && data.vehicleNo is string && data.vehicleNo.size() <= 100
         && data.serialNumber is string && data.serialNumber.size() > 0 && data.serialNumber.size() <= 100
-        && data.truckNumber is string && data.truckNumber.size() > 0 && data.truckNumber.size() <= 50
-        && data.positionId is string && data.positionId.size() > 0 && data.positionId.size() <= 50
-        && data.positionName is string && data.positionName.size() > 0 && data.positionName.size() <= 100
-        && data.installedDate is string
-        && data.kmAtInstallation is number && data.kmAtInstallation >= 0
-        && data.supervisorName is string && data.supervisorName.size() > 0 && data.supervisorName.size() <= 100;
+        && data.movementType is string && data.movementType.size() > 0 && data.movementType.size() <= 100
+        && data.movementDate is string
+        && data.odometer is number && data.odometer >= 0
+        && data.supervisorName is string && data.supervisorName.size() <= 100;
     }
 
     function isValidTyreMovement(data) {
-      return data.keys().hasAll(['id', 'serialNumber', 'sourceVehicle', 'destinationVehicle', 'sourcePosition', 'destinationPosition', 'date', 'supervisorName'])
-        && data.keys().size() <= 15
+      return data.keys().hasAll([
+        'id', 'serialNumber', 'sourceVehicle', 'destinationVehicle', 'sourcePosition', 'destinationPosition', 'date',
+        'movementId', 'tyreNumber', 'vehicleFrom', 'vehicleTo', 'positionFrom', 'positionTo', 'movementDate', 'odometer', 'supervisorName', 'reason'
+      ])
+        && data.keys().size() <= 20
         && data.id is string && data.id.size() > 0 && data.id.size() <= 128
         && data.serialNumber is string && data.serialNumber.size() > 0 && data.serialNumber.size() <= 100
         && data.sourceVehicle is string && data.sourceVehicle.size() > 0 && data.sourceVehicle.size() <= 100
@@ -94,7 +105,16 @@ service cloud.firestore {
         && data.sourcePosition is string && data.sourcePosition.size() > 0 && data.sourcePosition.size() <= 100
         && data.destinationPosition is string && data.destinationPosition.size() > 0 && data.destinationPosition.size() <= 100
         && data.date is string
-        && data.supervisorName is string && data.supervisorName.size() > 0 && data.supervisorName.size() <= 100;
+        && data.movementId is string && data.movementId.size() > 0 && data.movementId.size() <= 128
+        && data.tyreNumber is string && data.tyreNumber.size() > 0 && data.tyreNumber.size() <= 100
+        && data.vehicleFrom is string && data.vehicleFrom.size() > 0 && data.vehicleFrom.size() <= 100
+        && data.vehicleTo is string && data.vehicleTo.size() > 0 && data.vehicleTo.size() <= 100
+        && data.positionFrom is string && data.positionFrom.size() > 0 && data.positionFrom.size() <= 100
+        && data.positionTo is string && data.positionTo.size() > 0 && data.positionTo.size() <= 100
+        && data.movementDate is string
+        && data.odometer is number && data.odometer >= 0
+        && data.supervisorName is string && data.supervisorName.size() > 0 && data.supervisorName.size() <= 100
+        && data.reason is string && data.reason.size() <= 500;
     }
 
     // Validating Inspections
@@ -183,7 +203,7 @@ service cloud.firestore {
       allow delete: if isSignedIn() && isValidId(serialNumber);
     }
 
-    match /tyreHistories/{historyId} {
+    match /tyreHistory/{historyId} {
       allow read: if isSignedIn();
       allow create: if isSignedIn() && isValidId(historyId) && isValidTyreHistory(incoming());
       allow update: if isSignedIn() && isValidId(historyId) && isValidTyreHistory(incoming());

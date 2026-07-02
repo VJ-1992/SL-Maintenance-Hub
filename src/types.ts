@@ -73,18 +73,31 @@ export interface TyreMaster {
 }
 
 export interface TyreHistory {
-  id: string;
+  historyId: string;
+  vehicleNo: string;
+  tyreNumber?: string;
   serialNumber: string;
-  truckNumber: string;
-  positionId: string;
-  positionName: string;
-  installedDate: string;
+  oldPosition?: string;
+  newPosition?: string;
+  movementType: 'Tyre Installed' | 'Tyre Removed' | 'Tyre Replaced' | 'Tyre Swapped' | 'Tyre Sent for Retread' | 'Tyre Returned from Retread' | 'Tyre Scrapped';
+  movementDate: string;
+  odometer: number;
+  supervisorName: string;
+  remarks?: string;
+  oldStatus?: string;
+  newStatus?: string;
+
+  // Compatibility fields for presets and existing components
+  id?: string;
+  truckNumber?: string;
+  positionId?: string;
+  positionName?: string;
+  installedDate?: string;
   removedDate?: string;
-  kmAtInstallation: number;
+  kmAtInstallation?: number;
   kmAtRemoval?: number;
   totalKmRun?: number;
   removalReason?: string;
-  supervisorName: string;
 }
 
 export interface TyreMovement {
@@ -96,6 +109,17 @@ export interface TyreMovement {
   destinationPosition: string;
   date: string;
   supervisorName: string;
+
+  // New fields requested by user
+  movementId: string;
+  tyreNumber: string;
+  vehicleFrom: string;
+  vehicleTo: string;
+  positionFrom: string;
+  positionTo: string;
+  movementDate: string;
+  odometer: number;
+  reason: string;
 }
 
 export interface TyreInspection {
@@ -140,6 +164,7 @@ export interface Vehicle {
   tyresCount: number;       // 12 or 14
   hasLiftAxle: boolean;     // Yes (for Tata) or No (for Ashok Leyland)
   supervisorName: string;   // Supervisor Name
+  foremanName?: string;     // Foreman Name
   driverName: string;       // Driver details
   mobileNumber: string;     
   currentLocation: string;  // e.g., Jaipur, RJ
@@ -148,11 +173,18 @@ export interface Vehicle {
   insuranceExpiry?: string;  // YYYY-MM-DD
   fitnessExpiry?: string;    // YYYY-MM-DD
   permitExpiry?: string;     // YYYY-MM-DD
+  eWayBillExpiry?: string;   // YYYY-MM-DD
+  pucExpiry?: string;        // YYYY-MM-DD
   currentTripFrom?: string;
   currentTripTo?: string;
   tripStartDate?: string;
   tripStatus?: 'Planned' | 'In Transit' | 'Reached Destination' | 'Completed';
   partyName?: string;
+  
+  // Phase 2 updated template mapping fields
+  vehicleTemplate?: string;
+  wheelConfiguration?: string;
+  totalTyres?: number;
 }
 
 export interface ServiceLog {
@@ -222,7 +254,7 @@ export interface ServiceSchedule {
 export interface CentralNotification {
   id: string;
   truckNumber: string;
-  type: 'Service Due' | 'Service Overdue' | 'Insurance Expiry' | 'Fitness Expiry' | 'Permit Expiry' | 'Tyre Replacement Due' | 'Retread Due' | 'Warranty Expiry' | 'Low Tread Depth' | 'Low Air Pressure';
+  type: 'Service Due' | 'Service Overdue' | 'Insurance Expiry' | 'Fitness Expiry' | 'Permit Expiry' | 'E-Way Bill Expiry' | 'PUC Expiry' | 'Tyre Replacement Due' | 'Retread Due' | 'Warranty Expiry' | 'Low Tread Depth' | 'Low Air Pressure';
   title: string;
   message: string;
   date: string;
