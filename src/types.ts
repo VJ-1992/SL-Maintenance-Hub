@@ -185,6 +185,12 @@ export interface Vehicle {
   vehicleTemplate?: string;
   wheelConfiguration?: string;
   totalTyres?: number;
+  status?: string;
+  vehicleStatus?: string;
+  wheelCount?: number;
+  vehicleConfiguration?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface ServiceLog {

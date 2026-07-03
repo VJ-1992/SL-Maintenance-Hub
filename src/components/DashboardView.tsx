@@ -426,6 +426,43 @@ export default function DashboardView({
         {/* Right Column (1/3 width on desktop) */}
         <div className="space-y-6">
           
+          {/* FLEET OPERATIONAL STATUS SUMMARY (Requirement 3) */}
+          <div className="bg-white border border-slate-200 p-5 rounded shadow-sm space-y-4">
+            <div className="flex items-center space-x-2 border-b border-slate-100 pb-3">
+              <Truck className="text-blue-600 animate-pulse" size={16} />
+              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800">
+                Fleet Operational Status
+              </h3>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                { label: 'Running', colorBg: 'bg-emerald-50 border-emerald-150 text-emerald-800', countColor: 'text-emerald-700' },
+                { label: 'Loading', colorBg: 'bg-blue-50 border-blue-150 text-blue-800', countColor: 'text-blue-700' },
+                { label: 'Unloading', colorBg: 'bg-blue-50 border-blue-150 text-blue-800', countColor: 'text-blue-700' },
+                { label: 'Waiting', colorBg: 'bg-cyan-50 border-cyan-150 text-cyan-800', countColor: 'text-cyan-700' },
+                { label: 'Available', colorBg: 'bg-emerald-50 border-emerald-150 text-emerald-800', countColor: 'text-emerald-700' },
+                { label: 'No Order', colorBg: 'bg-slate-100 border-slate-200 text-slate-600', countColor: 'text-slate-700' },
+                { label: 'Maintenance', colorBg: 'bg-amber-50 border-amber-150 text-amber-800', countColor: 'text-amber-700' },
+                { label: 'Workshop', colorBg: 'bg-purple-50 border-purple-150 text-purple-800', countColor: 'text-purple-700' },
+                { label: 'Breakdown', colorBg: 'bg-red-50 border-red-150 text-red-800 animate-pulse', countColor: 'text-red-700' },
+                { label: 'Out of Service', colorBg: 'bg-slate-800 border-slate-900 text-slate-100', countColor: 'text-slate-100' }
+              ].map(({ label, colorBg, countColor }) => {
+                const count = vehicles.filter(v => (v.vehicleStatus || v.status || 'Available') === label).length;
+                const isEmpty = count === 0;
+                const dynamicColorBg = isEmpty ? 'bg-slate-50/40 border-slate-100/50 text-slate-300' : colorBg;
+                const dynamicCountColor = isEmpty ? 'text-slate-300 font-normal' : `${countColor} font-extrabold`;
+                
+                return (
+                  <div key={label} className={`p-2.5 rounded-xl border flex items-center justify-between text-[11px] font-extrabold tracking-wide ${dynamicColorBg}`}>
+                    <span>{label}</span>
+                    <span className={`font-mono text-sm ${dynamicCountColor}`}>{count}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+          
           {/* 5. MONTHLY MAINTENANCE COST (EXPENDITURES) */}
           <div className="bg-white border border-slate-200 p-5 rounded shadow-sm space-y-4">
             <div className="flex items-center space-x-2 border-b border-slate-100 pb-3">

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import Sidebar from './components/Sidebar';
 import DashboardView from './components/DashboardView';
 import FleetVehiclesView from './components/FleetVehiclesView';
@@ -157,6 +157,22 @@ export default function App() {
 
   // Cross-view state synchronization: which vehicle is selected when jumping to the Tyre Management tab!
   const [selectedTruckNumForTyres, setSelectedTruckNumForTyres] = useState<string>('');
+
+  const handleSubTabChange = useCallback((subTab: string) => {
+    if (subTab === 'master') {
+      setHeaderTitle({ title: 'Tyre Master Database', subtitle: 'Tyre Master Database Registry' });
+    } else if (subTab === 'history') {
+      setHeaderTitle({ title: 'Tyre Journey History', subtitle: 'Tyre Lifecycle Monitoring' });
+    } else if (subTab === 'inspection') {
+      setHeaderTitle({ title: 'Inspections Registry', subtitle: 'Tyre Inspections & Readings' });
+    } else if (subTab === 'retread') {
+      setHeaderTitle({ title: 'Retread Hub', subtitle: 'Tyre Retreading Lifecycle' });
+    } else if (subTab === 'analytics') {
+      setHeaderTitle({ title: 'Tyre Analytics', subtitle: 'Analytics & Performance' });
+    } else {
+      setHeaderTitle({ title: 'Tyre Management', subtitle: 'Tyre Lifecycle Monitoring' });
+    }
+  }, []);
 
   // 1. Initial State: Load from Firestore on mount
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
@@ -1246,21 +1262,7 @@ export default function App() {
             setTyreExpenses={setTyreExpenses}
             retreadRecords={retreadRecords}
             setRetreadRecords={setRetreadRecords}
-            onSubTabChange={(subTab) => {
-              if (subTab === 'master') {
-                setHeaderTitle({ title: 'Tyre Master Database', subtitle: 'Tyre Master Database Registry' });
-              } else if (subTab === 'history') {
-                setHeaderTitle({ title: 'Tyre Journey History', subtitle: 'Tyre Lifecycle Monitoring' });
-              } else if (subTab === 'inspection') {
-                setHeaderTitle({ title: 'Inspections Registry', subtitle: 'Tyre Inspections & Readings' });
-              } else if (subTab === 'retread') {
-                setHeaderTitle({ title: 'Retread Hub', subtitle: 'Tyre Retreading Lifecycle' });
-              } else if (subTab === 'analytics') {
-                setHeaderTitle({ title: 'Tyre Analytics', subtitle: 'Analytics & Performance' });
-              } else {
-                setHeaderTitle({ title: 'Tyre Management', subtitle: 'Tyre Lifecycle Monitoring' });
-              }
-            }}
+            onSubTabChange={handleSubTabChange}
           />
         );
       case 'notifications':

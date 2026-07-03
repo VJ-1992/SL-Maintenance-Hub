@@ -1367,7 +1367,7 @@ export default function TyreManagementView({
                 <p className="text-[10px] text-slate-400 font-bold uppercase font-mono">
                   Template: {activeVehicle.vehicleTemplate || `${activeVehicle.manufacturer} (${activeVehicle.tyresCount}-Wheelers)`}
                 </p>
-                {!activeVehicle.hasLiftAxle && (
+                {!activeVehicle.hasLiftAxle && activeVehicle.manufacturer !== VehicleManufacturer.ASHOK_LEYLAND && (
                   <div className="text-[9px] bg-amber-50 px-2 py-0.5 rounded text-amber-700 inline-block mt-1 font-semibold border border-amber-100 font-sans">
                     🚫 Lift Axle Hidden (Template Rule)
                   </div>
@@ -1393,10 +1393,10 @@ export default function TyreManagementView({
                 {activeVehicle.tyresCount === 14 ? (
                   <div className="z-10 flex justify-between items-center">
                     <div className="flex space-x-1">
-                      {renderVisualWheel("Axle2_LO", activeVehicle.hasLiftAxle ? "LA-LO" : "MD-LO")}
-                      {renderVisualWheel("Axle2_LI", activeVehicle.hasLiftAxle ? "LA-LI" : "MD-LI")}
+                      {renderVisualWheel("Axle2_LO", (activeVehicle.hasLiftAxle && activeVehicle.manufacturer !== VehicleManufacturer.ASHOK_LEYLAND) ? "LA-LO" : "MD-LO")}
+                      {renderVisualWheel("Axle2_LI", (activeVehicle.hasLiftAxle && activeVehicle.manufacturer !== VehicleManufacturer.ASHOK_LEYLAND) ? "LA-LI" : "MD-LI")}
                     </div>
-                    {activeVehicle.hasLiftAxle ? (
+                    {(activeVehicle.hasLiftAxle && activeVehicle.manufacturer !== VehicleManufacturer.ASHOK_LEYLAND) ? (
                       <div className="bg-purple-100 border border-purple-200 text-purple-700 h-6 flex-1 mx-2 flex items-center justify-center text-[7.5px] font-bold uppercase rounded tracking-wider font-sans">
                         LIFT
                       </div>
@@ -1406,8 +1406,8 @@ export default function TyreManagementView({
                       </div>
                     )}
                     <div className="flex space-x-1">
-                      {renderVisualWheel("Axle2_RI", activeVehicle.hasLiftAxle ? "LA-RI" : "MD-RI")}
-                      {renderVisualWheel("Axle2_RO", activeVehicle.hasLiftAxle ? "LA-RO" : "MD-RO")}
+                      {renderVisualWheel("Axle2_RI", (activeVehicle.hasLiftAxle && activeVehicle.manufacturer !== VehicleManufacturer.ASHOK_LEYLAND) ? "LA-RI" : "MD-RI")}
+                      {renderVisualWheel("Axle2_RO", (activeVehicle.hasLiftAxle && activeVehicle.manufacturer !== VehicleManufacturer.ASHOK_LEYLAND) ? "LA-RO" : "MD-RO")}
                     </div>
                   </div>
                 ) : null}

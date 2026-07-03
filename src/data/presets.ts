@@ -33,7 +33,7 @@ export function generateDefaultTyres(
     tyres.push(createTyre("Axle4_LI", "Drive 2 Left Inner (A4)", `${manufacturer === VehicleManufacturer.TATA ? 'A4' : 'AL4'}-LI-902`, brandList[3], 112, 5));
     tyres.push(createTyre("Axle4_RI", "Drive 2 Right Inner (A4)", `${manufacturer === VehicleManufacturer.TATA ? 'A4' : 'AL4'}-RI-903`, brandList[3], 114, 5));
     tyres.push(createTyre("Axle4_RO", "Drive 2 Right Outer (A4)", `${manufacturer === VehicleManufacturer.TATA ? 'A4' : 'AL4'}-RO-904`, brandList[3], 114, 3.5)); // Alert: Worn-out
-  } else {
+  } else if (totalTyres === 12) {
     // 12 Tyres layout
     // Axle 1: Steer (2 tyres)
     tyres.push(createTyre("Axle1_L", "Steer Left (A1)", `${manufacturer === VehicleManufacturer.TATA ? 'T' : 'AL'}-A1L-11`, brandList[1], 116, 12));
@@ -54,6 +54,23 @@ export function generateDefaultTyres(
     // Axle 4: Rear Tag Axle (2 single tyres on outer sides)
     tyres.push(createTyre("Axle4_L", "Rear Left (A4)", `${manufacturer === VehicleManufacturer.TATA ? 'T' : 'AL'}-A4L-99`, brandList[3], 116, 13));
     tyres.push(createTyre("Axle4_R", "Rear Right (A4)", `${manufacturer === VehicleManufacturer.TATA ? 'T' : 'AL'}-A4R-100`, brandList[3], 115, 12));
+  } else {
+    // 10 Tyres layout
+    // Axle 1: Steer (2 tyres)
+    tyres.push(createTyre("Axle1_L", "Steer Left (A1)", `${manufacturer === VehicleManufacturer.TATA ? 'T' : 'AL'}-A1L-11`, brandList[1], 116, 12));
+    tyres.push(createTyre("Axle1_R", "Steer Right (A1)", `${manufacturer === VehicleManufacturer.TATA ? 'T' : 'AL'}-A1R-12`, brandList[1], 115, 11));
+
+    // Axle 2: Drive Axle 1 (4 dually tyres)
+    tyres.push(createTyre("Axle2_LO", "Drive 1 Left Outer (A2)", `${manufacturer === VehicleManufacturer.TATA ? 'T' : 'AL'}-A2LO-31`, brandList[0], 110, 10));
+    tyres.push(createTyre("Axle2_LI", "Drive 1 Left Inner (A2)", `${manufacturer === VehicleManufacturer.TATA ? 'T' : 'AL'}-A2LI-32`, brandList[0], 111, 10));
+    tyres.push(createTyre("Axle2_RI", "Drive 1 Right Inner (A2)", `${manufacturer === VehicleManufacturer.TATA ? 'T' : 'AL'}-A2RI-33`, brandList[0], 110, 9));
+    tyres.push(createTyre("Axle2_RO", "Drive 1 Right Outer (A2)", `${manufacturer === VehicleManufacturer.TATA ? 'T' : 'AL'}-A2RO-34`, brandList[0], 112, 9));
+
+    // Axle 3: Drive Axle 2 (4 dually tyres)
+    tyres.push(createTyre("Axle3_LO", "Drive 2 Left Outer (A3)", `${manufacturer === VehicleManufacturer.TATA ? 'T' : 'AL'}-A3LO-41`, brandList[2], 114, 8));
+    tyres.push(createTyre("Axle3_LI", "Drive 2 Left Inner (A3)", `${manufacturer === VehicleManufacturer.TATA ? 'T' : 'AL'}-A3LI-42`, brandList[2], 115, 7));
+    tyres.push(createTyre("Axle3_RI", "Drive 2 Right Inner (A3)", `${manufacturer === VehicleManufacturer.TATA ? 'T' : 'AL'}-A3RI-43`, brandList[2], 85, 8));
+    tyres.push(createTyre("Axle3_RO", "Drive 2 Right Outer (A3)", `${manufacturer === VehicleManufacturer.TATA ? 'T' : 'AL'}-A3RO-44`, brandList[2], 114, 7));
   }
 
   return tyres;
@@ -100,7 +117,8 @@ export const PRESET_VEHICLES: Vehicle[] = [
     currentTripTo: "Chennai",
     tripStartDate: "2026-06-24",
     tripStatus: "In Transit",
-    partyName: "Balaji Logistics"
+    partyName: "Balaji Logistics",
+    vehicleStatus: "Running"
   },
   {
     truckNumber: "RJ14GP0981",
@@ -123,7 +141,8 @@ export const PRESET_VEHICLES: Vehicle[] = [
     currentTripTo: "Mumbai",
     tripStartDate: "2026-06-25",
     tripStatus: "Planned",
-    partyName: "Raj Express"
+    partyName: "Raj Express",
+    vehicleStatus: "Available"
   }
 ];
 

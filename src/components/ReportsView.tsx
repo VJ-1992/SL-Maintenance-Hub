@@ -21,6 +21,59 @@ import {
   ArrowUpDown
 } from 'lucide-react';
 
+const renderVehicleStatus = (statusStr?: string) => {
+  const s = statusStr || 'Available';
+  let colorClasses = 'bg-emerald-50 text-emerald-700 border-emerald-200';
+  
+  switch (s) {
+    case 'Running':
+    case 'Available':
+      colorClasses = 'bg-emerald-50 text-emerald-700 border-emerald-200';
+      break;
+    case 'Loading':
+    case 'Unloading':
+      colorClasses = 'bg-blue-50 text-blue-700 border-blue-200';
+      break;
+    case 'Waiting':
+      colorClasses = 'bg-cyan-50 text-cyan-700 border-cyan-200';
+      break;
+    case 'No Order':
+      colorClasses = 'bg-slate-100 text-slate-600 border-slate-300';
+      break;
+    case 'Maintenance':
+      colorClasses = 'bg-amber-50 text-amber-700 border-amber-200';
+      break;
+    case 'Workshop':
+      colorClasses = 'bg-purple-50 text-purple-700 border-purple-200';
+      break;
+    case 'Breakdown':
+      colorClasses = 'bg-red-50 text-red-700 border-red-200 animate-pulse';
+      break;
+    case 'Out of Service':
+      colorClasses = 'bg-slate-800 text-slate-100 border-slate-900';
+      break;
+    default:
+      const upper = s.toUpperCase();
+      if (upper === 'ON TRIP' || upper === 'ACTIVE' || upper === 'RUNNING') {
+        colorClasses = 'bg-emerald-50 text-emerald-700 border-emerald-200';
+      } else if (upper === 'IN GARAGE' || upper === 'WORKSHOP') {
+        colorClasses = 'bg-purple-50 text-purple-700 border-purple-200';
+      } else if (upper === 'UNDER MAINTENANCE' || upper === 'MAINTENANCE') {
+        colorClasses = 'bg-amber-50 text-amber-700 border-amber-200';
+      } else if (upper === 'BREAKDOWN') {
+        colorClasses = 'bg-red-50 text-red-700 border-red-200 animate-pulse';
+      } else {
+        colorClasses = 'bg-slate-50 text-slate-500 border-slate-200';
+      }
+  }
+
+  return (
+    <span className={`text-[9px] font-extrabold uppercase tracking-wider px-1.5 py-0.5 rounded border ${colorClasses} inline-flex items-center w-fit font-sans`}>
+      {s}
+    </span>
+  );
+};
+
 interface ReportsViewProps {
   vehicles: Vehicle[];
   serviceLogs: ServiceLog[];
@@ -362,6 +415,7 @@ export default function ReportsView({
                 <tr className="border-b border-slate-200 text-slate-400 font-bold uppercase text-[10px] bg-slate-50">
                   <th className="p-3">Vehicle Number</th>
                   <th className="p-3">Manufacturer</th>
+                  <th className="p-3">Status</th>
                   <th className="p-3">Supervisor Name</th>
                   <th className="p-3">Foreman Name</th>
                   <th className="p-3 text-right">Service Logs Count</th>
@@ -378,6 +432,7 @@ export default function ReportsView({
                     <tr key={v.truckNumber} className="hover:bg-slate-50">
                       <td className="p-3 font-bold text-slate-950">{v.truckNumber}</td>
                       <td className="p-3 font-sans">{v.manufacturer}</td>
+                      <td className="p-3">{renderVehicleStatus(v.vehicleStatus || v.status)}</td>
                       <td className="p-3 font-sans font-semibold">{v.supervisorName}</td>
                       <td className="p-3 font-sans font-semibold">{v.foremanName || 'N/A'}</td>
                       <td className="p-3 text-right">{data.logCount} entries</td>
@@ -646,6 +701,7 @@ export default function ReportsView({
             <thead>
               <tr className="border-b border-slate-200 text-slate-400 font-bold uppercase text-[10px] bg-slate-50">
                 <th className="p-3">Vehicle No</th>
+                <th className="p-3">Status</th>
                 <th className="p-3">Insurance</th>
                 <th className="p-3">Fitness Cert</th>
                 <th className="p-3">National Permit</th>
@@ -682,6 +738,7 @@ export default function ReportsView({
                 return (
                   <tr key={v.truckNumber} className="hover:bg-slate-50">
                     <td className="p-3 font-bold text-slate-900">{v.truckNumber}</td>
+                    <td className="p-3">{renderVehicleStatus(v.vehicleStatus || v.status)}</td>
                     <td className="p-3">{renderExpiryCell(v.insuranceExpiry)}</td>
                     <td className="p-3">{renderExpiryCell(v.fitnessExpiry)}</td>
                     <td className="p-3">{renderExpiryCell(v.permitExpiry)}</td>
