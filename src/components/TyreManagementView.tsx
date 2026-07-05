@@ -1519,10 +1519,10 @@ export default function TyreManagementView({
     <div className="space-y-6">
       
       {/* Upper sub-tabs layout navigation */}
-      <div className="flex border-b border-slate-200 bg-white p-1 rounded gap-1 shadow-sm">
+      <div className="flex border-b border-slate-200 bg-white p-1 rounded gap-1 shadow-sm overflow-x-auto whitespace-nowrap scrollbar-hide">
         <button
           onClick={() => setActiveSubTab('chassis')}
-          className={`flex items-center space-x-1.5 px-4 py-2 rounded text-xs font-bold uppercase transition ${
+          className={`flex items-center space-x-1.5 px-4 py-2.5 sm:py-2 rounded text-xs font-bold uppercase transition flex-shrink-0 ${
             activeSubTab === 'chassis' ? 'bg-blue-600 text-white' : 'text-slate-600 hover:bg-slate-50'
           }`}
         >
@@ -1532,7 +1532,7 @@ export default function TyreManagementView({
 
         <button
           onClick={() => setActiveSubTab('analytics')}
-          className={`flex items-center space-x-1.5 px-4 py-2 rounded text-xs font-bold uppercase transition ${
+          className={`flex items-center space-x-1.5 px-4 py-2.5 sm:py-2 rounded text-xs font-bold uppercase transition flex-shrink-0 ${
             activeSubTab === 'analytics' ? 'bg-blue-600 text-white' : 'text-slate-600 hover:bg-slate-50'
           }`}
         >
@@ -1542,7 +1542,7 @@ export default function TyreManagementView({
 
         <button
           onClick={() => setActiveSubTab('master')}
-          className={`flex items-center space-x-1.5 px-4 py-2 rounded text-xs font-bold uppercase transition ${
+          className={`flex items-center space-x-1.5 px-4 py-2.5 sm:py-2 rounded text-xs font-bold uppercase transition flex-shrink-0 ${
             activeSubTab === 'master' ? 'bg-blue-600 text-white' : 'text-slate-600 hover:bg-slate-50'
           }`}
         >
@@ -1552,7 +1552,7 @@ export default function TyreManagementView({
 
         <button
           onClick={() => setActiveSubTab('history')}
-          className={`flex items-center space-x-1.5 px-4 py-2 rounded text-xs font-bold uppercase transition ${
+          className={`flex items-center space-x-1.5 px-4 py-2.5 sm:py-2 rounded text-xs font-bold uppercase transition flex-shrink-0 ${
             activeSubTab === 'history' ? 'bg-blue-600 text-white' : 'text-slate-600 hover:bg-slate-50'
           }`}
         >
@@ -1562,7 +1562,7 @@ export default function TyreManagementView({
 
         <button
           onClick={() => setActiveSubTab('inspection')}
-          className={`flex items-center space-x-1.5 px-4 py-2 rounded text-xs font-bold uppercase transition ${
+          className={`flex items-center space-x-1.5 px-4 py-2.5 sm:py-2 rounded text-xs font-bold uppercase transition flex-shrink-0 ${
             activeSubTab === 'inspection' ? 'bg-blue-600 text-white' : 'text-slate-600 hover:bg-slate-50'
           }`}
         >
@@ -1572,7 +1572,7 @@ export default function TyreManagementView({
 
         <button
           onClick={() => setActiveSubTab('retread')}
-          className={`flex items-center space-x-1.5 px-4 py-2 rounded text-xs font-bold uppercase transition ${
+          className={`flex items-center space-x-1.5 px-4 py-2.5 sm:py-2 rounded text-xs font-bold uppercase transition flex-shrink-0 ${
             activeSubTab === 'retread' ? 'bg-blue-600 text-white' : 'text-slate-600 hover:bg-slate-50'
           }`}
         >
@@ -1612,7 +1612,7 @@ export default function TyreManagementView({
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             
             {/* Left: Interactive Chassis Map */}
-            <div className="lg:col-span-5 bg-white p-6 rounded border border-slate-200 shadow-sm flex flex-col items-center justify-center relative min-h-[500px]">
+            <div className="lg:col-span-5 bg-white p-4 sm:p-6 rounded border border-slate-200 shadow-sm flex flex-col items-center justify-center relative min-h-[500px] w-full overflow-hidden">
               
               <div className="w-full text-center space-y-1 border-b border-slate-100 pb-4 mb-4">
                 <h4 className="font-bold text-slate-900 uppercase text-xs tracking-wider">
@@ -1738,7 +1738,7 @@ export default function TyreManagementView({
                   </div>
 
                   {/* Calibration Sliders */}
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="p-3.5 bg-slate-50 rounded border border-slate-150">
                       <label className="text-[10px] font-bold text-slate-400 uppercase block">Air Pressure (PSI)</label>
                       <input 
@@ -1786,7 +1786,7 @@ export default function TyreManagementView({
                   {/* Interactive Forms */}
                   <div className="p-4 bg-slate-50 border border-slate-200 rounded space-y-4">
                     <span className="text-[10px] font-bold text-slate-400 uppercase block tracking-wider">Calibration Input Form</span>
-                    <div className="grid grid-cols-2 gap-3 text-xs">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                       <div>
                         <label className="block text-[10px] font-bold text-slate-500 mb-1">Serial ID Code</label>
                         <input 
@@ -1817,7 +1817,7 @@ export default function TyreManagementView({
                   {/* Rapid Service Console Actions */}
                   <div className="space-y-2">
                     <span className="text-[10px] font-bold text-slate-400 uppercase block tracking-wider">Immediate Service Actions Launcher</span>
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                       <button
                         onClick={executeAirInflation}
                         className="p-2.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded text-xs font-bold uppercase transition"
@@ -2287,7 +2287,7 @@ export default function TyreManagementView({
                           className="w-full p-2 bg-slate-100 border border-slate-200 rounded font-mono font-bold text-slate-600 cursor-not-allowed"
                         />
                       </div>
-                      <div className="grid grid-cols-2 gap-2">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         <div>
                           <label className="block font-bold text-slate-500 mb-0.5 uppercase text-[9px]">Tyre Number (Required)</label>
                           <input 
@@ -2315,7 +2315,7 @@ export default function TyreManagementView({
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-2">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         <div>
                           <label className="block font-bold text-slate-500 mb-0.5 uppercase text-[9px]">Brand Manufacturer</label>
                           <select 
@@ -2343,7 +2343,7 @@ export default function TyreManagementView({
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-2">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         <div>
                           <label className="block font-bold text-slate-500 mb-0.5 uppercase text-[9px]">Pattern Profile</label>
                           <select
@@ -2368,7 +2368,7 @@ export default function TyreManagementView({
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-2">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         <div>
                           <label className="block font-bold text-slate-500 mb-0.5 uppercase text-[9px]">Load / Speed Index</label>
                           <input 
@@ -2392,7 +2392,7 @@ export default function TyreManagementView({
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-2">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         <div>
                           <label className="block font-bold text-slate-500 mb-0.5 uppercase text-[9px]">Radial / Nylon</label>
                           <select
@@ -2446,7 +2446,7 @@ export default function TyreManagementView({
                   </button>
                   {expandedSections.purchase && (
                     <div className="p-3 bg-white space-y-3 animate-fadeIn">
-                      <div className="grid grid-cols-2 gap-2">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         <div>
                           <label className="block font-bold text-slate-500 mb-0.5 uppercase text-[9px]">Purchase Date</label>
                           <input 
@@ -2467,7 +2467,7 @@ export default function TyreManagementView({
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-2">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         <div>
                           <label className="block font-bold text-slate-500 mb-0.5 uppercase text-[9px]">Supplier / Vendor Name</label>
                           <input 
@@ -2489,7 +2489,7 @@ export default function TyreManagementView({
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-2">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         <div>
                           <label className="block font-bold text-slate-500 mb-0.5 uppercase text-[9px]">Invoice Number</label>
                           <input 
@@ -2541,7 +2541,7 @@ export default function TyreManagementView({
                   </button>
                   {expandedSections.warranty && (
                     <div className="p-3 bg-white space-y-3 animate-fadeIn">
-                      <div className="grid grid-cols-2 gap-2">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         <div>
                           <label className="block font-bold text-slate-500 mb-0.5 uppercase text-[9px]">Warranty Period (Months)</label>
                           <input 
@@ -3331,7 +3331,7 @@ export default function TyreManagementView({
                 </select>
               </div>
 
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <div>
                   <label className="block font-bold text-slate-600 mb-1">Measured PSI</label>
                   <input 
@@ -3505,7 +3505,7 @@ export default function TyreManagementView({
                 </select>
               </div>
 
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <div>
                   <label className="block font-bold text-slate-600 mb-1">Retread Cost (₹)</label>
                   <input 
@@ -3539,7 +3539,7 @@ export default function TyreManagementView({
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <div>
                   <label className="block font-bold text-slate-600 mb-1">Invoice Number</label>
                   <input 
@@ -3610,7 +3610,7 @@ export default function TyreManagementView({
           ---------------------------------------------------- */}
       {showSwapModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white border border-slate-200 rounded p-6 shadow-2xl w-full max-w-md space-y-5 text-xs">
+          <div className="bg-white border border-slate-200 rounded p-6 shadow-2xl w-[95vw] max-w-[480px] max-h-[90vh] overflow-y-auto space-y-5 text-xs">
             
             <div className="flex justify-between items-center border-b border-slate-100 pb-3">
               <h4 className="text-sm font-bold text-slate-900 uppercase font-sans flex items-center gap-1.5">
