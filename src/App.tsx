@@ -43,6 +43,37 @@ function sanitizeTyre(t: any): TyreMaster {
   const createdAt = t.createdAt || new Date().toISOString();
   const updatedAt = t.updatedAt || new Date().toISOString();
 
+  // Upgraded Tyre Asset Management Fields
+  const tyreId = t.tyreId || '';
+  const pattern = t.pattern || 'Rib Pattern';
+  const loadIndex = t.loadIndex || '146/143K';
+  const tubeTubeless = t.tubeTubeless || 'Tubeless';
+  const radialNylon = t.radialNylon || 'Radial';
+  const mfgWeek = typeof t.mfgWeek === 'number' ? t.mfgWeek : 12;
+  const mfgYear = typeof t.mfgYear === 'number' ? t.mfgYear : 2026;
+  
+  const supplierContact = t.supplierContact || '';
+  const invoiceNumber = t.invoiceNumber || '';
+  const purchaseOrderNumber = t.purchaseOrderNumber || '';
+  const gstNumber = t.gstNumber || '';
+  
+  const manufacturerWarranty = t.manufacturerWarranty || 'Standard 3 Year';
+  const dealerWarranty = t.dealerWarranty || '1 Year Road Hazard';
+  
+  const currentAxle = t.currentAxle || '';
+  const installedDate = t.installedDate || installationDate || '';
+  const supervisor = t.supervisor || supervisorName || '';
+  const foreman = t.foreman || '';
+
+  const repairCount = typeof t.repairCount === 'number' ? t.repairCount : 0;
+  const healthScore = typeof t.healthScore === 'number' ? t.healthScore : 100;
+  const totalRepairCost = typeof t.totalRepairCost === 'number' ? t.totalRepairCost : 0;
+  const totalRetreadCost = typeof t.totalRetreadCost === 'number' ? t.totalRetreadCost : 0;
+  const totalInvestment = typeof t.totalInvestment === 'number' ? t.totalInvestment : purchaseCost;
+  const costPerKm = typeof t.costPerKm === 'number' ? t.costPerKm : 0;
+
+  const categorizedDocs = t.categorizedDocs || {};
+
   return {
     ...t,
     serialNumber,
@@ -57,6 +88,32 @@ function sanitizeTyre(t: any): TyreMaster {
     currentVehicle,
     currentPosition,
     
+    // Upgraded Fields
+    tyreId,
+    pattern,
+    loadIndex,
+    tubeTubeless,
+    radialNylon,
+    mfgWeek,
+    mfgYear,
+    supplierContact,
+    invoiceNumber,
+    purchaseOrderNumber,
+    gstNumber,
+    manufacturerWarranty,
+    dealerWarranty,
+    currentAxle,
+    installedDate,
+    supervisor,
+    foreman,
+    repairCount,
+    healthScore,
+    totalRepairCost,
+    totalRetreadCost,
+    totalInvestment,
+    costPerKm,
+    categorizedDocs,
+
     // Firestore schema fields
     vehicleNo,
     position,
@@ -345,7 +402,13 @@ export default function App() {
         const firestoreTyres = await fetchCollection<TyreMaster>('tyres');
 
         if (firestoreTyres && firestoreTyres.length > 0) {
-          const sanitized = firestoreTyres.map(t => sanitizeTyre(t));
+          const sanitized = firestoreTyres.map((t, idx) => {
+            const st = sanitizeTyre(t);
+            if (!st.tyreId) {
+              st.tyreId = `TY${String(idx + 1).padStart(6, '0')}`;
+            }
+            return st;
+          });
           const unique = Array.from(new Map(sanitized.map(item => [item.serialNumber, item])).values());
           setTyres(unique);
           console.log("Tyres Loaded from Firestore:", unique.length);
@@ -354,8 +417,12 @@ export default function App() {
           console.log("Seeding INITIAL_TYRES to Firestore...");
           const seeded: TyreMaster[] = [];
           const usedTyreNumbers = new Set<string>();
+          let idx = 0;
           for (const tyre of INITIAL_TYRES) {
             const sanitized = sanitizeTyre(tyre);
+            if (!sanitized.tyreId) {
+              sanitized.tyreId = `TY${String(idx + 1).padStart(6, '0')}`;
+            }
             let docId = sanitized.tyreNumber ? sanitized.tyreNumber.trim().toUpperCase() : '';
             if (!docId || usedTyreNumbers.has(docId)) {
               docId = sanitized.serialNumber ? sanitized.serialNumber.trim().toUpperCase() : `TYRE_${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
@@ -363,6 +430,7 @@ export default function App() {
             usedTyreNumbers.add(docId);
             await writeDocument('tyres', docId, sanitized);
             seeded.push(sanitized);
+            idx++;
           }
           setTyres(seeded);
           console.log("Tyres Seeded & Loaded");
@@ -370,7 +438,13 @@ export default function App() {
       } catch (error) {
         console.error("Error loading tyres from Firestore:", error);
         // Fallback to presets offline if necessary
-        const sanitized = INITIAL_TYRES.map(t => sanitizeTyre(t));
+        const sanitized = INITIAL_TYRES.map((t, idx) => {
+          const st = sanitizeTyre(t);
+          if (!st.tyreId) {
+            st.tyreId = `TY${String(idx + 1).padStart(6, '0')}`;
+          }
+          return st;
+        });
         setTyres(sanitized);
         console.log("Tyres Loaded (Offline Fallback)");
       } finally {
@@ -993,7 +1067,7 @@ export default function App() {
       const vehicleNo = tyre.currentVehicle || tyre.vendor || 'Spare';
       
       // Tyre Replacement Due
-      if (tyre.status === 'Active' && tyre.currentRunningKm >= tyre.expectedLifeKm) {
+      if ((tyre.status === TyreMasterStatus.INSTALLED || (tyre.status as string) === 'Active') && tyre.currentRunningKm >= tyre.expectedLifeKm) {
         autoNotifs.push({
           id: `AUTO_TYRE_REPLACE_${tyre.serialNumber}`,
           truckNumber: vehicleNo,
@@ -1008,7 +1082,7 @@ export default function App() {
 
       // Low Tread Depth
       const depth = typeof tyre.treadDepth === 'number' ? tyre.treadDepth : 12;
-      if (tyre.status === 'Active' && depth < 4.5) {
+      if ((tyre.status === TyreMasterStatus.INSTALLED || (tyre.status as string) === 'Active') && depth < 4.5) {
         autoNotifs.push({
           id: `AUTO_TYRE_TREAD_${tyre.serialNumber}`,
           truckNumber: vehicleNo,
@@ -1023,7 +1097,7 @@ export default function App() {
 
       // Low Air Pressure
       const psi = typeof tyre.pressure === 'number' ? tyre.pressure : 115;
-      if (tyre.status === 'Active' && psi < 100) {
+      if ((tyre.status === TyreMasterStatus.INSTALLED || (tyre.status as string) === 'Active') && psi < 100) {
         autoNotifs.push({
           id: `AUTO_TYRE_PSI_${tyre.serialNumber}`,
           truckNumber: vehicleNo,

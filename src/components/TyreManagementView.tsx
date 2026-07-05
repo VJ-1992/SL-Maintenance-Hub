@@ -24,7 +24,9 @@ import {
   TrendingUp,
   BarChart3,
   AlertTriangle,
-  AlertCircle
+  AlertCircle,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 
 interface TyreManagementViewProps {
@@ -973,8 +975,48 @@ export default function TyreManagementView({
   const [newWarranty, setNewWarranty] = useState(12);
   const [newMfgDate, setNewMfgDate] = useState('2026-03-01');
   const [newExpectedLife, setNewExpectedLife] = useState(100000);
-  const [newStatus, setNewStatus] = useState<TyreMasterStatus>(TyreMasterStatus.SPARE);
+  const [newStatus, setNewStatus] = useState<TyreMasterStatus>(TyreMasterStatus.INVENTORY);
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Upgraded Tyre Asset states
+  const [selectedTyreForProfile, setSelectedTyreForProfile] = useState<TyreMaster | null>(null);
+  const [newPattern, setNewPattern] = useState('Rib Pattern');
+  const [newLoadIndex, setNewLoadIndex] = useState('146/143K');
+  const [newTubeTubeless, setNewTubeTubeless] = useState('Tubeless');
+  const [newRadialNylon, setNewRadialNylon] = useState('Radial');
+  const [newMfgWeek, setNewMfgWeek] = useState(12);
+  const [newMfgYear, setNewMfgYear] = useState(2026);
+  
+  const [newSupplierContact, setNewSupplierContact] = useState('');
+  const [newInvoiceNumber, setNewInvoiceNumber] = useState('');
+  const [newPurchaseOrderNumber, setNewPurchaseOrderNumber] = useState('');
+  const [newGstNumber, setNewGstNumber] = useState('');
+  
+  const [newMfgWarranty, setNewMfgWarranty] = useState('Standard 3 Year');
+  const [newDealerWarranty, setNewDealerWarranty] = useState('1 Year Road Hazard');
+  const [newForeman, setNewForeman] = useState('Imtiyaz');
+
+  // History search filter state
+  const [historySearchQuery, setHistorySearchQuery] = useState('');
+
+  // Accordion Sections Expand state
+  const [expandedSections, setExpandedSections] = useState<{ [key: string]: boolean }>({
+    basic: true,
+    purchase: true,
+    warranty: true,
+    status: true,
+    assignment: true,
+    health: true,
+    financial: true,
+    documents: true,
+  });
+
+  const toggleSection = (section: string) => {
+    setExpandedSections(prev => ({
+      ...prev,
+      [section]: !prev[section]
+    }));
+  };
 
   // Simulating uploads with local state
   const [uploadedDocs, setUploadedDocs] = useState<{ [serial: string]: { name: string; size: string; date: string }[] }>({});
@@ -1019,16 +1061,193 @@ export default function TyreManagementView({
       ...prev,
       [serial]: [...(prev[serial] || []), newDoc]
     }));
+
+    // Also populate categorization fallback as Purchase Invoice
+    handleAddCategorizedFile(serial, 'purchaseInvoice', name, size);
   };
 
-  const handleAddTyreToMaster = (e: React.FormEvent) => {
-    e.preventDefault();
+  // Upgraded Categorized Upload
+  const handleAddCategorizedFile = (serial: string, category: string, fileName: string, fileSize: string) => {
+    const newDoc = {
+      name: fileName,
+      size: fileSize,
+      date: new Date().toISOString().split('T')[0]
+    };
+
+    setTyres(prev => prev.map(t => {
+      if (t.serialNumber === serial) {
+        const catDocs = t.categorizedDocs || {};
+        const list = catDocs[category] || [];
+        return {
+          ...t,
+          categorizedDocs: {
+            ...catDocs,
+            [category]: [...list, newDoc]
+          }
+        };
+      }
+      return t;
+    }));
+
+    if (selectedTyreForProfile && selectedTyreForProfile.serialNumber === serial) {
+      setSelectedTyreForProfile(prev => {
+        if (!prev) return null;
+        const catDocs = prev.categorizedDocs || {};
+        const list = catDocs[category] || [];
+        return {
+          ...prev,
+          categorizedDocs: {
+            ...catDocs,
+            [category]: [...list, newDoc]
+          }
+        };
+      });
+    }
+  };
+
+  const handleRemoveCategorizedFile = (serial: string, category: string, index: number) => {
+    setTyres(prev => prev.map(t => {
+      if (t.serialNumber === serial) {
+        const catDocs = t.categorizedDocs || {};
+        const list = catDocs[category] || [];
+        const updatedList = list.filter((_, idx) => idx !== index);
+        return {
+          ...t,
+          categorizedDocs: {
+            ...catDocs,
+            [category]: updatedList
+          }
+        };
+      }
+      return t;
+    }));
+
+    if (selectedTyreForProfile && selectedTyreForProfile.serialNumber === serial) {
+      setSelectedTyreForProfile(prev => {
+        if (!prev) return null;
+        const catDocs = prev.categorizedDocs || {};
+        const list = catDocs[category] || [];
+        const updatedList = list.filter((_, idx) => idx !== index);
+        return {
+          ...prev,
+          categorizedDocs: {
+            ...catDocs,
+            [category]: updatedList
+          }
+        };
+      });
+    }
+  };
+
+  // Helper algorithms for Asset Management Calculations
+  const generateNextTyreId = (existingTyres: TyreMaster[]) => {
+    const ids = existingTyres
+      .map(t => t.tyreId)
+      .filter((id): id is string => typeof id === 'string' && id.startsWith('TY'));
+    if (ids.length === 0) return 'TY000001';
+    const numbers = ids.map(id => parseInt(id.replace('TY', ''), 10)).filter(n => !isNaN(n));
+    const max = Math.max(0, ...numbers);
+    return `TY${String(max + 1).padStart(6, '0')}`;
+  };
+
+  const calculateTyreAgeMonths = (tyre: TyreMaster) => {
+    try {
+      let mfgDate: Date;
+      if (tyre.manufacturingDate) {
+        mfgDate = new Date(tyre.manufacturingDate);
+      } else if (tyre.mfgYear && tyre.mfgWeek) {
+        mfgDate = new Date(tyre.mfgYear, 0, 1 + (tyre.mfgWeek - 1) * 7);
+      } else {
+        return 0;
+      }
+      const today = new Date();
+      const diffYears = today.getFullYear() - mfgDate.getFullYear();
+      const diffMonths = today.getMonth() - mfgDate.getMonth();
+      return Math.max(0, diffYears * 12 + diffMonths);
+    } catch {
+      return 0;
+    }
+  };
+
+  const calculateHealthScore = (treadDepth: number) => {
+    const maxTread = 16;
+    const minTread = 3;
+    const current = Math.max(minTread, Math.min(maxTread, treadDepth));
+    const score = Math.round(((current - minTread) / (maxTread - minTread)) * 100);
+    return Math.max(0, Math.min(100, score));
+  };
+
+  const handleLoadTyreProfile = (t: TyreMaster) => {
+    setSelectedTyreForProfile(t);
+    setNewRegTyreNumber(t.tyreNumber || '');
+    setNewSerial(t.serialNumber);
+    setNewBrand(t.brand);
+    setNewModel(t.model);
+    setNewSize(t.size);
+    setNewPurchaseDate(t.purchaseDate);
+    setNewPurchaseCost(t.purchaseCost);
+    setNewVendor(t.vendorName || t.vendor || '');
+    setNewWarranty(t.warrantyPeriodMonths);
+    setNewMfgDate(t.manufacturingDate);
+    setNewExpectedLife(t.expectedLifeKm);
+    setNewStatus(t.status);
+
+    setNewPattern(t.pattern || 'Rib Pattern');
+    setNewLoadIndex(t.loadIndex || '146/143K');
+    setNewTubeTubeless(t.tubeTubeless || 'Tubeless');
+    setNewRadialNylon(t.radialNylon || 'Radial');
+    setNewMfgWeek(t.mfgWeek || 12);
+    setNewMfgYear(t.mfgYear || 2026);
+    setNewSupplierContact(t.supplierContact || '');
+    setNewInvoiceNumber(t.invoiceNumber || '');
+    setNewPurchaseOrderNumber(t.purchaseOrderNumber || '');
+    setNewGstNumber(t.gstNumber || '');
+    setNewMfgWarranty(t.manufacturerWarranty || 'Standard 3 Year');
+    setNewDealerWarranty(t.dealerWarranty || '1 Year Road Hazard');
+    setNewForeman(t.foreman || 'Imtiyaz');
+  };
+
+  const handleClearTyreProfile = () => {
+    setSelectedTyreForProfile(null);
+    setNewRegTyreNumber('');
+    setNewSerial('');
+    setNewBrand('MRF Supermiler');
+    setNewModel('S3C4');
+    setNewSize('10.00R20');
+    setNewPurchaseDate('2026-06-01');
+    setNewPurchaseCost(16500);
+    setNewVendor('MRF Authorized Dealer RJ');
+    setNewWarranty(12);
+    setNewMfgDate('2026-03-01');
+    setNewExpectedLife(100000);
+    setNewStatus(TyreMasterStatus.INVENTORY);
+
+    setNewPattern('Rib Pattern');
+    setNewLoadIndex('146/143K');
+    setNewTubeTubeless('Tubeless');
+    setNewRadialNylon('Radial');
+    setNewMfgWeek(12);
+    setNewMfgYear(2026);
+    setNewSupplierContact('');
+    setNewInvoiceNumber('');
+    setNewPurchaseOrderNumber('');
+    setNewGstNumber('');
+    setNewMfgWarranty('Standard 3 Year');
+    setNewDealerWarranty('1 Year Road Hazard');
+    setNewForeman('Imtiyaz');
+  };
+
+  const handleAddTyreToMaster = (e: React.FormEvent, installImmediately = false) => {
+    if (e) e.preventDefault();
+
     if (!newSerial) {
       alert("Please provide a unique serial number!");
       return;
     }
 
-    if (tyres.some(t => t.serialNumber === newSerial)) {
+    const isEdit = !!selectedTyreForProfile;
+
+    if (!isEdit && tyres.some(t => t.serialNumber.toUpperCase() === newSerial.toUpperCase())) {
       alert("Error: A tyre with this Serial Number already exists inside the database!");
       return;
     }
@@ -1043,7 +1262,15 @@ export default function TyreManagementView({
       }
     })();
 
-    const createdTyre: TyreMaster = {
+    // Generate permanent read-only Tyre ID
+    const tyreId = isEdit ? (selectedTyreForProfile?.tyreId || `TY${String(tyres.length + 1).padStart(6, '0')}`) : generateNextTyreId(tyres);
+
+    // Calculate health score dynamically
+    const wearMm = typeof selectedTyreForProfile?.treadDepth === 'number' ? selectedTyreForProfile.treadDepth : 12;
+    const computedHealth = calculateHealthScore(wearMm);
+
+    const updatedTyre: TyreMaster = {
+      ...(isEdit ? selectedTyreForProfile : {}),
       serialNumber: newSerial.trim().toUpperCase(),
       tyreNumber: newRegTyreNumber.trim().toUpperCase() || newSerial.trim().toUpperCase(),
       brand: newBrand,
@@ -1057,17 +1284,44 @@ export default function TyreManagementView({
       warrantyExpiry: calculatedExpiry,
       manufacturingDate: newMfgDate,
       expectedLifeKm: newExpectedLife,
-      currentRunningKm: 0,
       status: newStatus,
-      retreadCount: 0,
-      currentVehicle: '',
-      currentPosition: ''
+      
+      // Upgraded Fields
+      tyreId,
+      pattern: newPattern,
+      loadIndex: newLoadIndex,
+      tubeTubeless: newTubeTubeless,
+      radialNylon: newRadialNylon,
+      mfgWeek: newMfgWeek,
+      mfgYear: newMfgYear,
+      supplierContact: newSupplierContact,
+      invoiceNumber: newInvoiceNumber,
+      purchaseOrderNumber: newPurchaseOrderNumber,
+      gstNumber: newGstNumber,
+      manufacturerWarranty: newMfgWarranty,
+      dealerWarranty: newDealerWarranty,
+      foreman: newForeman,
+      healthScore: computedHealth,
     };
 
-    setTyres(prev => [createdTyre, ...prev]);
-    setNewSerial('');
-    setNewRegTyreNumber('');
-    alert(`Tyre ${createdTyre.tyreNumber} added successfully to the Tyre Master database Rack!`);
+    if (isEdit) {
+      setTyres(prev => prev.map(t => t.serialNumber === selectedTyreForProfile?.serialNumber ? updatedTyre : t));
+      alert(`Tyre asset ${updatedTyre.tyreNumber} successfully updated!`);
+    } else {
+      setTyres(prev => [updatedTyre, ...prev]);
+      alert(`Tyre asset ${updatedTyre.tyreNumber} successfully registered in database rack!`);
+    }
+
+    if (installImmediately) {
+      // Set replacement selection in state
+      setSelectedSpareSerial(updatedTyre.serialNumber);
+      setReplaceMode('spare');
+      setModalOption('replace');
+      setActiveSubTab('chassis');
+      alert(`Tyre ${updatedTyre.tyreNumber} saved! Redirecting to Chassis Workbench. Select any vehicle wheel position to install this tyre.`);
+    }
+
+    handleClearTyreProfile();
   };
 
   // ----------------------------------------------------
@@ -1940,194 +2194,778 @@ export default function TyreManagementView({
           ---------------------------------------------------- */}
       {activeSubTab === 'master' && (
         <div className="space-y-6">
+          {/* Header Action bar with dynamic state indicator */}
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-5 rounded border border-slate-200 shadow-sm">
             <div>
-              <h2 className="text-lg font-bold text-slate-950 uppercase font-sans">Tyre Master Database Registry</h2>
-              <p className="text-xs text-slate-500 font-bold uppercase">View and insert complete physical tyre lifecycles (serial, manufacturer age, cost, and retreads).</p>
+              <div className="flex items-center gap-2">
+                <h2 className="text-lg font-bold text-slate-950 uppercase font-sans">
+                  {selectedTyreForProfile ? 'Tyre Asset Profile & Edit' : 'Tyre Master Database Registry'}
+                </h2>
+                {selectedTyreForProfile && (
+                  <span className="px-2 py-0.5 bg-blue-100 text-blue-800 font-mono text-[10px] font-bold uppercase rounded">
+                    Selected: {selectedTyreForProfile.tyreId}
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-slate-500 font-bold uppercase">
+                {selectedTyreForProfile 
+                  ? 'Examine detailed lifecycle metrics, document uploads, and update asset fields.' 
+                  : 'Register, categorize, and track physical tyre assets, costs, and lifecycles.'}
+              </p>
             </div>
             
-            <div className="relative w-full sm:w-64">
-              <Search className="absolute left-2.5 top-2 text-slate-400" size={14} />
-              <input 
-                type="text" 
-                placeholder="Search serial / brand..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full text-xs font-bold border border-slate-200 pl-8 pr-3 py-1.5 rounded focus:outline-none"
-              />
+            <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+              {selectedTyreForProfile && (
+                <button
+                  type="button"
+                  onClick={handleClearTyreProfile}
+                  className="px-3 py-1.5 border border-slate-300 hover:bg-slate-50 text-slate-700 font-bold rounded text-xs uppercase flex items-center gap-1.5 transition"
+                >
+                  <Plus size={13} />
+                  <span>Register New Tyre</span>
+                </button>
+              )}
+              <div className="relative w-full sm:w-64">
+                <Search className="absolute left-2.5 top-2 text-slate-400" size={14} />
+                <input 
+                  type="text" 
+                  placeholder="Search ID, Serial, Brand, Truck..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full text-xs font-bold border border-slate-200 pl-8 pr-3 py-1.5 rounded focus:outline-none"
+                />
+              </div>
             </div>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             
-            {/* Left Col: Add New Tyre Form */}
-            <div className="bg-white p-6 rounded border border-slate-200 shadow-sm space-y-4 h-fit">
-              <div className="flex items-center space-x-1.5 border-b border-slate-100 pb-3">
-                <Plus className="text-blue-600" size={16} />
-                <h3 className="font-bold text-slate-900 text-xs uppercase tracking-wider">Register New Tyre Master</h3>
+            {/* Left Col: Dynamic Register / Profile Panel */}
+            <div className="lg:col-span-1 bg-white p-5 rounded border border-slate-200 shadow-sm space-y-4 h-fit">
+              <div className="flex items-center justify-between border-b border-slate-150 pb-3">
+                <div className="flex items-center space-x-1.5">
+                  <Sliders className="text-blue-600" size={16} />
+                  <h3 className="font-bold text-slate-900 text-xs uppercase tracking-wider">
+                    {selectedTyreForProfile ? 'Tyre Asset Profile Manager' : 'Register New Tyre Asset'}
+                  </h3>
+                </div>
+                {selectedTyreForProfile && (
+                  <button 
+                    type="button" 
+                    onClick={handleClearTyreProfile}
+                    className="text-slate-400 hover:text-slate-650"
+                    title="Close Profile"
+                  >
+                    <X size={15} />
+                  </button>
+                )}
               </div>
 
-              <form onSubmit={handleAddTyreToMaster} className="space-y-3.5 text-xs">
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="block font-bold text-slate-600 mb-1">Tyre Number (Required)</label>
-                    <input 
-                      type="text" 
-                      placeholder="e.g., TR-101"
-                      value={newRegTyreNumber}
-                      onChange={(e) => setNewRegTyreNumber(e.target.value)}
-                      className="w-full p-2 border border-slate-200 rounded font-bold uppercase"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block font-bold text-slate-600 mb-1">Unique Serial Code</label>
-                    <input 
-                      type="text" 
-                      placeholder="e.g., TY-803-JK"
-                      value={newSerial}
-                      onChange={(e) => setNewSerial(e.target.value)}
-                      className="w-full p-2 border border-slate-200 rounded font-mono font-bold uppercase"
-                      required
-                    />
-                  </div>
+              <form onSubmit={(e) => handleAddTyreToMaster(e, false)} className="space-y-4 text-xs">
+                
+                {/* A. BASIC INFORMATION ACCORDION */}
+                <div className="border border-slate-200 rounded overflow-hidden">
+                  <button
+                    type="button"
+                    onClick={() => toggleSection('basic')}
+                    className="w-full flex justify-between items-center bg-slate-50 px-3 py-2.5 text-left font-bold text-slate-700 hover:bg-slate-100 transition border-b border-slate-200"
+                  >
+                    <span className="flex items-center gap-1.5">
+                      <Info size={14} className="text-blue-500" />
+                      <span>A. Basic Information</span>
+                    </span>
+                    {expandedSections.basic ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                  </button>
+                  {expandedSections.basic && (
+                    <div className="p-3 bg-white space-y-3 animate-fadeIn">
+                      <div>
+                        <label className="block font-bold text-slate-500 mb-0.5 uppercase text-[9px]">Auto Generated Tyre ID</label>
+                        <input 
+                          type="text" 
+                          value={selectedTyreForProfile ? selectedTyreForProfile.tyreId : 'TYXXXXXX (Auto Assigned)'}
+                          disabled
+                          className="w-full p-2 bg-slate-100 border border-slate-200 rounded font-mono font-bold text-slate-600 cursor-not-allowed"
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="block font-bold text-slate-500 mb-0.5 uppercase text-[9px]">Tyre Number (Required)</label>
+                          <input 
+                            type="text" 
+                            placeholder="e.g., TR-101"
+                            value={newRegTyreNumber}
+                            onChange={(e) => setNewRegTyreNumber(e.target.value)}
+                            className="w-full p-2 border border-slate-200 rounded font-bold uppercase focus:ring-1 focus:ring-blue-500"
+                            required
+                          />
+                        </div>
+                        <div>
+                          <label className="block font-bold text-slate-500 mb-0.5 uppercase text-[9px]">Unique Serial Code (Required)</label>
+                          <input 
+                            type="text" 
+                            placeholder="e.g., TY-803-JK"
+                            value={newSerial}
+                            onChange={(e) => setNewSerial(e.target.value)}
+                            disabled={!!selectedTyreForProfile}
+                            className={`w-full p-2 border border-slate-200 rounded font-mono font-bold uppercase focus:ring-1 focus:ring-blue-500 ${
+                              selectedTyreForProfile ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : ''
+                            }`}
+                            required
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="block font-bold text-slate-500 mb-0.5 uppercase text-[9px]">Brand Manufacturer</label>
+                          <select 
+                            value={newBrand}
+                            onChange={(e) => setNewBrand(e.target.value)}
+                            className="w-full p-2 border border-slate-200 rounded font-bold text-slate-800"
+                          >
+                            <option value="MRF">MRF Supermiler</option>
+                            <option value="Apollo">Apollo EnduMax</option>
+                            <option value="JK Tyre">JK Tyre JetSteel</option>
+                            <option value="CEAT">CEAT Mile XL</option>
+                            <option value="Goodyear">Goodyear ArmorMax</option>
+                            <option value="Michelin">Michelin X Multi</option>
+                            <option value="Bridgestone">Bridgestone G611</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block font-bold text-slate-500 mb-0.5 uppercase text-[9px]">Model Spec</label>
+                          <input 
+                            type="text" 
+                            value={newModel}
+                            onChange={(e) => setNewModel(e.target.value)}
+                            className="w-full p-2 border border-slate-200 rounded font-bold focus:ring-1 focus:ring-blue-500"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="block font-bold text-slate-500 mb-0.5 uppercase text-[9px]">Pattern Profile</label>
+                          <select
+                            value={newPattern}
+                            onChange={(e) => setNewPattern(e.target.value)}
+                            className="w-full p-2 border border-slate-200 rounded font-bold focus:ring-1 focus:ring-blue-500"
+                          >
+                            <option value="Rib Pattern">Rib Pattern (Steer/Highway)</option>
+                            <option value="Lug Pattern">Lug Pattern (Drive/Traction)</option>
+                            <option value="Semi-Lug Pattern">Semi-Lug (All-Wheel)</option>
+                            <option value="Radial Block">Radial Block (Off-Road)</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block font-bold text-slate-500 mb-0.5 uppercase text-[9px]">Tyre Size Spec</label>
+                          <input 
+                            type="text" 
+                            value={newSize}
+                            onChange={(e) => setNewSize(e.target.value)}
+                            className="w-full p-2 border border-slate-200 rounded font-bold focus:ring-1 focus:ring-blue-500"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="block font-bold text-slate-500 mb-0.5 uppercase text-[9px]">Load / Speed Index</label>
+                          <input 
+                            type="text" 
+                            value={newLoadIndex}
+                            onChange={(e) => setNewLoadIndex(e.target.value)}
+                            className="w-full p-2 border border-slate-200 rounded font-bold focus:ring-1 focus:ring-blue-500"
+                            placeholder="e.g. 146/143K"
+                          />
+                        </div>
+                        <div>
+                          <label className="block font-bold text-slate-500 mb-0.5 uppercase text-[9px]">Tube / Tubeless</label>
+                          <select
+                            value={newTubeTubeless}
+                            onChange={(e) => setNewTubeTubeless(e.target.value)}
+                            className="w-full p-2 border border-slate-200 rounded font-bold focus:ring-1 focus:ring-blue-500"
+                          >
+                            <option value="Tubeless">Tubeless</option>
+                            <option value="Tube Type">Tube Type</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="block font-bold text-slate-500 mb-0.5 uppercase text-[9px]">Radial / Nylon</label>
+                          <select
+                            value={newRadialNylon}
+                            onChange={(e) => setNewRadialNylon(e.target.value)}
+                            className="w-full p-2 border border-slate-200 rounded font-bold focus:ring-1 focus:ring-blue-500"
+                          >
+                            <option value="Radial">Radial (Steel Belted)</option>
+                            <option value="Nylon">Nylon (Bias Ply)</option>
+                          </select>
+                        </div>
+                        <div className="grid grid-cols-2 gap-1">
+                          <div>
+                            <label className="block font-bold text-slate-500 mb-0.5 uppercase text-[9px]">Mfg Week</label>
+                            <input 
+                              type="number" 
+                              min="1"
+                              max="53"
+                              value={newMfgWeek}
+                              onChange={(e) => setNewMfgWeek(parseInt(e.target.value) || 12)}
+                              className="w-full p-2 border border-slate-200 rounded font-bold focus:ring-1 focus:ring-blue-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="block font-bold text-slate-500 mb-0.5 uppercase text-[9px]">Mfg Year</label>
+                            <input 
+                              type="number" 
+                              value={newMfgYear}
+                              onChange={(e) => setNewMfgYear(parseInt(e.target.value) || 2026)}
+                              className="w-full p-2 border border-slate-200 rounded font-bold focus:ring-1 focus:ring-blue-500"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="block font-bold text-slate-600 mb-1">Brand Manufacturer</label>
-                    <select 
-                      value={newBrand}
-                      onChange={(e) => setNewBrand(e.target.value)}
-                      className="w-full p-2 border border-slate-200 rounded font-bold"
-                    >
-                      <option value="MRF">MRF Supermiler</option>
-                      <option value="Apollo">Apollo EnduMax</option>
-                      <option value="JK Tyre">JK Tyre JetSteel</option>
-                      <option value="CEAT">CEAT Mile XL</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block font-bold text-slate-600 mb-1">Model Spec</label>
-                    <input 
-                      type="text" 
-                      value={newModel}
-                      onChange={(e) => setNewModel(e.target.value)}
-                      className="w-full p-2 border border-slate-200 rounded font-bold"
-                    />
-                  </div>
+                {/* B. PURCHASE DETAILS ACCORDION */}
+                <div className="border border-slate-200 rounded overflow-hidden">
+                  <button
+                    type="button"
+                    onClick={() => toggleSection('purchase')}
+                    className="w-full flex justify-between items-center bg-slate-50 px-3 py-2.5 text-left font-bold text-slate-700 hover:bg-slate-100 transition border-b border-slate-200"
+                  >
+                    <span className="flex items-center gap-1.5">
+                      <TrendingUp size={14} className="text-indigo-500" />
+                      <span>B. Purchase Details</span>
+                    </span>
+                    {expandedSections.purchase ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                  </button>
+                  {expandedSections.purchase && (
+                    <div className="p-3 bg-white space-y-3 animate-fadeIn">
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="block font-bold text-slate-500 mb-0.5 uppercase text-[9px]">Purchase Date</label>
+                          <input 
+                            type="date" 
+                            value={newPurchaseDate}
+                            onChange={(e) => setNewPurchaseDate(e.target.value)}
+                            className="w-full p-2 border border-slate-200 rounded font-bold"
+                          />
+                        </div>
+                        <div>
+                          <label className="block font-bold text-slate-500 mb-0.5 uppercase text-[9px]">Purchase Cost (₹)</label>
+                          <input 
+                            type="number" 
+                            value={newPurchaseCost}
+                            onChange={(e) => setNewPurchaseCost(parseInt(e.target.value) || 0)}
+                            className="w-full p-2 border border-slate-200 rounded font-bold"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="block font-bold text-slate-500 mb-0.5 uppercase text-[9px]">Supplier / Vendor Name</label>
+                          <input 
+                            type="text" 
+                            value={newVendor}
+                            onChange={(e) => setNewVendor(e.target.value)}
+                            className="w-full p-2 border border-slate-200 rounded font-semibold"
+                          />
+                        </div>
+                        <div>
+                          <label className="block font-bold text-slate-500 mb-0.5 uppercase text-[9px]">Supplier Contact No.</label>
+                          <input 
+                            type="text" 
+                            placeholder="e.g. +91 98290 12345"
+                            value={newSupplierContact}
+                            onChange={(e) => setNewSupplierContact(e.target.value)}
+                            className="w-full p-2 border border-slate-200 rounded font-semibold"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="block font-bold text-slate-500 mb-0.5 uppercase text-[9px]">Invoice Number</label>
+                          <input 
+                            type="text" 
+                            placeholder="e.g. INV/26-27/0411"
+                            value={newInvoiceNumber}
+                            onChange={(e) => setNewInvoiceNumber(e.target.value)}
+                            className="w-full p-2 border border-slate-200 rounded font-mono font-bold"
+                          />
+                        </div>
+                        <div>
+                          <label className="block font-bold text-slate-500 mb-0.5 uppercase text-[9px]">Purchase Order (PO)</label>
+                          <input 
+                            type="text" 
+                            placeholder="e.g. PO-8902"
+                            value={newPurchaseOrderNumber}
+                            onChange={(e) => setNewPurchaseOrderNumber(e.target.value)}
+                            className="w-full p-2 border border-slate-200 rounded font-mono font-bold"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block font-bold text-slate-500 mb-0.5 uppercase text-[9px]">Vendor GSTIN Number</label>
+                        <input 
+                          type="text" 
+                          placeholder="e.g. 08AAAAA1111A1Z1"
+                          value={newGstNumber}
+                          onChange={(e) => setNewGstNumber(e.target.value)}
+                          className="w-full p-2 border border-slate-200 rounded font-mono font-bold uppercase"
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
 
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="block font-bold text-slate-600 mb-1">Tyre Size Spec</label>
-                    <input 
-                      type="text" 
-                      value={newSize}
-                      onChange={(e) => setNewSize(e.target.value)}
-                      className="w-full p-2 border border-slate-200 rounded font-bold"
-                    />
-                  </div>
-                  <div>
-                    <label className="block font-bold text-slate-600 mb-1">Status Class</label>
-                    <select 
-                      value={newStatus}
-                      onChange={(e) => setNewStatus(e.target.value as TyreMasterStatus)}
-                      className="w-full p-2 border border-slate-200 rounded font-bold uppercase"
-                    >
-                      <option value={TyreMasterStatus.SPARE}>Spare / Yard Rack</option>
-                      <option value={TyreMasterStatus.ACTIVE}>Active Fitted</option>
-                      <option value={TyreMasterStatus.NEW}>New Inventory</option>
-                    </select>
-                  </div>
+                {/* C. WARRANTY DETAILS ACCORDION */}
+                <div className="border border-slate-200 rounded overflow-hidden">
+                  <button
+                    type="button"
+                    onClick={() => toggleSection('warranty')}
+                    className="w-full flex justify-between items-center bg-slate-50 px-3 py-2.5 text-left font-bold text-slate-700 hover:bg-slate-100 transition border-b border-slate-200"
+                  >
+                    <span className="flex items-center gap-1.5">
+                      <Calendar size={14} className="text-emerald-500" />
+                      <span>C. Warranty details</span>
+                    </span>
+                    {expandedSections.warranty ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                  </button>
+                  {expandedSections.warranty && (
+                    <div className="p-3 bg-white space-y-3 animate-fadeIn">
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="block font-bold text-slate-500 mb-0.5 uppercase text-[9px]">Warranty Period (Months)</label>
+                          <input 
+                            type="number" 
+                            value={newWarranty}
+                            onChange={(e) => setNewWarranty(parseInt(e.target.value) || 0)}
+                            className="w-full p-2 border border-slate-200 rounded font-bold"
+                          />
+                        </div>
+                        <div>
+                          <label className="block font-bold text-slate-500 mb-0.5 uppercase text-[9px]">Calculated Expiry Date</label>
+                          <div className="w-full p-2 bg-slate-50 border border-slate-200 rounded font-mono font-bold text-emerald-700">
+                            {(() => {
+                              try {
+                                const d = new Date(newPurchaseDate);
+                                d.setMonth(d.getMonth() + newWarranty);
+                                return d.toISOString().split('T')[0];
+                              } catch {
+                                return 'N/A';
+                              }
+                            })()}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block font-bold text-slate-500 mb-0.5 uppercase text-[9px]">Manufacturer Warranty Spec</label>
+                        <input 
+                          type="text" 
+                          value={newMfgWarranty}
+                          onChange={(e) => setNewMfgWarranty(e.target.value)}
+                          className="w-full p-2 border border-slate-200 rounded font-semibold"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block font-bold text-slate-500 mb-0.5 uppercase text-[9px]">Dealer / Supplier Warranty Extension</label>
+                        <input 
+                          type="text" 
+                          value={newDealerWarranty}
+                          onChange={(e) => setNewDealerWarranty(e.target.value)}
+                          className="w-full p-2 border border-slate-200 rounded font-semibold"
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
 
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="block font-bold text-slate-600 mb-1">Purchase Date</label>
-                    <input 
-                      type="date" 
-                      value={newPurchaseDate}
-                      onChange={(e) => setNewPurchaseDate(e.target.value)}
-                      className="w-full p-2 border border-slate-200 rounded font-bold"
-                    />
-                  </div>
-                  <div>
-                    <label className="block font-bold text-slate-600 mb-1">Purchase Cost (₹)</label>
-                    <input 
-                      type="number" 
-                      value={newPurchaseCost}
-                      onChange={(e) => setNewPurchaseCost(parseInt(e.target.value) || 0)}
-                      className="w-full p-2 border border-slate-200 rounded font-bold"
-                    />
-                  </div>
+                {/* D. CURRENT STATUS ACCORDION */}
+                <div className="border border-slate-200 rounded overflow-hidden">
+                  <button
+                    type="button"
+                    onClick={() => toggleSection('status')}
+                    className="w-full flex justify-between items-center bg-slate-50 px-3 py-2.5 text-left font-bold text-slate-700 hover:bg-slate-100 transition border-b border-slate-200"
+                  >
+                    <span className="flex items-center gap-1.5">
+                      <Activity size={14} className="text-amber-500" />
+                      <span>D. Current Status</span>
+                    </span>
+                    {expandedSections.status ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                  </button>
+                  {expandedSections.status && (
+                    <div className="p-3 bg-white space-y-3 animate-fadeIn">
+                      <div>
+                        <label className="block font-bold text-slate-500 mb-0.5 uppercase text-[9px]">Tyre Operational Status Class</label>
+                        <select 
+                          value={newStatus}
+                          onChange={(e) => setNewStatus(e.target.value as TyreMasterStatus)}
+                          className="w-full p-2.5 border border-slate-200 rounded font-bold uppercase text-slate-800 bg-slate-50"
+                        >
+                          <option value={TyreMasterStatus.INVENTORY}>Inventory (Available/Spare)</option>
+                          <option value={TyreMasterStatus.INSTALLED}>Installed (Active Fitted)</option>
+                          <option value={TyreMasterStatus.REPAIR}>Repair (Workshop/Patching)</option>
+                          <option value={TyreMasterStatus.RETREAD}>Retread (Processing/Recap)</option>
+                          <option value={TyreMasterStatus.SCRAP}>Scrap (Retired/Discarded)</option>
+                          <option value={TyreMasterStatus.RESERVED}>Reserved (Booked/Standby)</option>
+                          <option value={TyreMasterStatus.LOST}>Lost (Missing/Claimed)</option>
+                        </select>
+                        <p className="text-[10px] text-slate-400 mt-1 italic">
+                          *Installed tyres are locked to their vehicle axle position.
+                        </p>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
-                <div>
-                  <label className="block font-bold text-slate-600 mb-1">Vendor Retailer Name</label>
-                  <input 
-                    type="text" 
-                    value={newVendor}
-                    onChange={(e) => setNewVendor(e.target.value)}
-                    className="w-full p-2 border border-slate-200 rounded font-semibold"
-                  />
+                {/* E. CURRENT ASSIGNMENT ACCORDION */}
+                <div className="border border-slate-200 rounded overflow-hidden">
+                  <button
+                    type="button"
+                    onClick={() => toggleSection('assignment')}
+                    className="w-full flex justify-between items-center bg-slate-50 px-3 py-2.5 text-left font-bold text-slate-700 hover:bg-slate-100 transition border-b border-slate-200"
+                  >
+                    <span className="flex items-center gap-1.5">
+                      <ArrowLeftRight size={14} className="text-cyan-500" />
+                      <span>E. Current Assignment</span>
+                    </span>
+                    {expandedSections.assignment ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                  </button>
+                  {expandedSections.assignment && (
+                    <div className="p-3 bg-white space-y-2 animate-fadeIn text-[11px]">
+                      {selectedTyreForProfile && selectedTyreForProfile.status === TyreMasterStatus.INSTALLED ? (
+                        <div className="bg-slate-50 border border-slate-200 rounded p-2.5 space-y-1.5 font-sans">
+                          <div className="flex justify-between">
+                            <span className="text-slate-450 font-bold uppercase text-[9px]">Active Vehicle:</span>
+                            <span className="font-mono font-bold text-blue-600">{selectedTyreForProfile.currentVehicle || 'N/A'}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-slate-450 font-bold uppercase text-[9px]">Axle Assignment:</span>
+                            <span className="font-semibold text-slate-800">{selectedTyreForProfile.currentAxle || 'Front Axle'}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-slate-450 font-bold uppercase text-[9px]">Wheel Position:</span>
+                            <span className="font-mono font-bold text-slate-700">{selectedTyreForProfile.currentPosition || 'Left Outer'}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-slate-450 font-bold uppercase text-[9px]">Installed Date:</span>
+                            <span className="font-mono text-slate-800">{selectedTyreForProfile.installedDate || 'N/A'}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-slate-450 font-bold uppercase text-[9px]">Supervisor:</span>
+                            <span className="font-bold text-slate-850">{selectedTyreForProfile.supervisor || swapSupervisor || 'Logistics Admin'}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-slate-450 font-bold uppercase text-[9px]">Foreman:</span>
+                            <span className="font-bold text-slate-850">{newForeman}</span>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="p-3 text-center border border-dashed border-slate-200 rounded text-slate-450 bg-slate-50 italic">
+                          No active vehicle assignment. Tyre is available as spare stock in Inventory.
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
 
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="block font-bold text-slate-600 mb-1">Warranty Period (months)</label>
-                    <input 
-                      type="number" 
-                      value={newWarranty}
-                      onChange={(e) => setNewWarranty(parseInt(e.target.value) || 0)}
-                      className="w-full p-2 border border-slate-200 rounded font-bold"
-                    />
-                  </div>
-                  <div>
-                    <label className="block font-bold text-slate-600 mb-1">Manufacturing Date</label>
-                    <input 
-                      type="date" 
-                      value={newMfgDate}
-                      onChange={(e) => setNewMfgDate(e.target.value)}
-                      className="w-full p-2 border border-slate-200 rounded font-bold"
-                    />
-                  </div>
+                {/* F. TYRE HEALTH ACCORDION */}
+                <div className="border border-slate-200 rounded overflow-hidden">
+                  <button
+                    type="button"
+                    onClick={() => toggleSection('health')}
+                    className="w-full flex justify-between items-center bg-slate-50 px-3 py-2.5 text-left font-bold text-slate-700 hover:bg-slate-100 transition border-b border-slate-200"
+                  >
+                    <span className="flex items-center gap-1.5">
+                      <ClipboardCheck size={14} className="text-purple-500" />
+                      <span>F. Tyre Health Summary</span>
+                    </span>
+                    {expandedSections.health ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                  </button>
+                  {expandedSections.health && (
+                    <div className="p-3 bg-white space-y-2.5 animate-fadeIn">
+                      {(() => {
+                        const runKm = selectedTyreForProfile?.currentRunningKm || 0;
+                        const ageMonths = selectedTyreForProfile ? calculateTyreAgeMonths(selectedTyreForProfile) : 0;
+                        const originalTread = 16;
+                        const currentTread = selectedTyreForProfile?.treadDepth || selectedTyreForProfile?.treadDepthMm || 12;
+                        const health = calculateHealthScore(currentTread);
+                        const psi = selectedTyreForProfile?.psi || 115;
+                        const repairs = selectedTyreForProfile?.repairCount || 0;
+                        const retreads = selectedTyreForProfile?.retreadCount || 0;
+
+                        return (
+                          <div className="space-y-3 font-sans">
+                            <div className="grid grid-cols-2 gap-2 text-center text-[11px]">
+                              <div className="bg-slate-50 border border-slate-100 rounded p-1.5">
+                                <span className="block font-bold text-slate-400 uppercase text-[8px]">Running Odometer</span>
+                                <span className="font-mono font-bold text-slate-900">{runKm.toLocaleString()} KM</span>
+                              </div>
+                              <div className="bg-slate-50 border border-slate-100 rounded p-1.5">
+                                <span className="block font-bold text-slate-400 uppercase text-[8px]">Inflation Pressure</span>
+                                <span className="font-mono font-bold text-blue-600">{psi} PSI</span>
+                              </div>
+                              <div className="bg-slate-50 border border-slate-100 rounded p-1.5">
+                                <span className="block font-bold text-slate-400 uppercase text-[8px]">Tread Depth</span>
+                                <span className="font-mono font-bold text-purple-600">{currentTread} mm ({originalTread}mm new)</span>
+                              </div>
+                              <div className="bg-slate-50 border border-slate-100 rounded p-1.5">
+                                <span className="block font-bold text-slate-400 uppercase text-[8px]">Asset Age</span>
+                                <span className="font-mono font-bold text-slate-800">{ageMonths} Months</span>
+                              </div>
+                            </div>
+
+                            <div className="bg-slate-50 border border-slate-150 p-2 rounded">
+                              <div className="flex justify-between items-center text-xs mb-1">
+                                <span className="font-bold text-slate-700">Health Index Score</span>
+                                <span className={`font-mono font-extrabold ${
+                                  health > 75 ? 'text-emerald-600' : health > 50 ? 'text-orange-500' : 'text-red-500'
+                                }`}>{health}%</span>
+                              </div>
+                              <div className="w-full bg-slate-200 h-2 rounded overflow-hidden">
+                                <div 
+                                  className={`h-full rounded transition-all duration-500 ${
+                                    health > 75 ? 'bg-emerald-500' : health > 50 ? 'bg-orange-500' : 'bg-red-500'
+                                  }`}
+                                  style={{ width: `${health}%` }}
+                                ></div>
+                              </div>
+                            </div>
+
+                            <div className="flex justify-between text-[11px] px-1 font-semibold text-slate-650">
+                              <span>Repairs: <strong className="text-slate-900 font-mono">{repairs}</strong></span>
+                              <span>Retreads: <strong className="text-purple-600 font-mono">{retreads} / 3 Max</strong></span>
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  )}
                 </div>
 
-                <div>
-                  <label className="block font-bold text-slate-600 mb-1">Expected Design Life (KM)</label>
-                  <input 
-                    type="number" 
-                    value={newExpectedLife}
-                    onChange={(e) => setNewExpectedLife(parseInt(e.target.value) || 0)}
-                    className="w-full p-2 border border-slate-200 rounded font-bold"
-                  />
+                {/* G. FINANCIAL SUMMARY ACCORDION */}
+                <div className="border border-slate-200 rounded overflow-hidden">
+                  <button
+                    type="button"
+                    onClick={() => toggleSection('financial')}
+                    className="w-full flex justify-between items-center bg-slate-50 px-3 py-2.5 text-left font-bold text-slate-700 hover:bg-slate-100 transition border-b border-slate-200"
+                  >
+                    <span className="flex items-center gap-1.5">
+                      <TrendingUp size={14} className="text-emerald-500" />
+                      <span>G. Financial Summary</span>
+                    </span>
+                    {expandedSections.financial ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                  </button>
+                  {expandedSections.financial && (
+                    <div className="p-3 bg-white space-y-2 animate-fadeIn text-[11px]">
+                      {(() => {
+                        const cost = selectedTyreForProfile?.purchaseCost || newPurchaseCost || 0;
+                        const repairsCount = selectedTyreForProfile?.repairCount || 0;
+                        const retreadsCount = selectedTyreForProfile?.retreadCount || 0;
+                        const repairsCost = selectedTyreForProfile?.totalRepairCost || (repairsCount * 1200);
+                        const retreadsCost = selectedTyreForProfile?.totalRetreadCost || (retreadsCount * 3500);
+                        const totalInv = cost + repairsCost + retreadsCost;
+                        const runKm = selectedTyreForProfile?.currentRunningKm || 0;
+                        const cpkm = runKm > 0 ? (totalInv / runKm).toFixed(2) : 'N/A';
+
+                        return (
+                          <div className="space-y-1.5 font-sans">
+                            <div className="flex justify-between border-b border-slate-100 pb-1">
+                              <span className="text-slate-500">Base Purchase Cost:</span>
+                              <span className="font-mono font-bold text-slate-800">₹{cost.toLocaleString()}</span>
+                            </div>
+                            <div className="flex justify-between border-b border-slate-100 pb-1">
+                              <span className="text-slate-500">Total Repair Expense:</span>
+                              <span className="font-mono font-bold text-slate-800">₹{repairsCost.toLocaleString()}</span>
+                            </div>
+                            <div className="flex justify-between border-b border-slate-100 pb-1">
+                              <span className="text-slate-500">Total Retread Expense:</span>
+                              <span className="font-mono font-bold text-slate-800">₹{retreadsCost.toLocaleString()}</span>
+                            </div>
+                            <div className="flex justify-between bg-slate-50 p-1.5 rounded font-bold border border-slate-150">
+                              <span className="text-slate-700">Total Life Investment:</span>
+                              <span className="font-mono text-indigo-700">₹{totalInv.toLocaleString()}</span>
+                            </div>
+                            <div className="flex justify-between items-center bg-blue-50/50 p-1.5 rounded font-bold border border-blue-100 mt-2">
+                              <span className="text-blue-800">Operating Cost Per KM:</span>
+                              <span className="font-mono text-emerald-700 text-xs">{cpkm !== 'N/A' ? `₹${cpkm} / KM` : 'N/A'}</span>
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  )}
                 </div>
 
-                <button
-                  type="submit"
-                  className="w-full p-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded uppercase shadow text-xs transition"
-                >
-                  Save to Tyre Master DB
-                </button>
+                {/* H. DOCUMENT MANAGEMENT ACCORDION */}
+                <div className="border border-slate-200 rounded overflow-hidden">
+                  <button
+                    type="button"
+                    onClick={() => toggleSection('documents')}
+                    className="w-full flex justify-between items-center bg-slate-50 px-3 py-2.5 text-left font-bold text-slate-700 hover:bg-slate-100 transition border-b border-slate-200"
+                  >
+                    <span className="flex items-center gap-1.5">
+                      <FileText size={14} className="text-blue-500" />
+                      <span>H. Document Management</span>
+                    </span>
+                    {expandedSections.documents ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                  </button>
+                  {expandedSections.documents && (
+                    <div className="p-3 bg-white space-y-3.5 animate-fadeIn">
+                      {selectedTyreForProfile ? (
+                        <div className="space-y-3">
+                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Categorized Folders</span>
+                          
+                          {[
+                            { id: 'purchaseInvoice', label: 'Purchase Invoice', color: 'border-blue-150 bg-blue-50/20' },
+                            { id: 'warrantyCard', label: 'Warranty Card', color: 'border-emerald-150 bg-emerald-50/20' },
+                            { id: 'inspectionPhotos', label: 'Inspection Photos', color: 'border-purple-150 bg-purple-50/20' },
+                            { id: 'damagePhotos', label: 'Damage Photos', color: 'border-red-150 bg-red-50/20' },
+                            { id: 'repairBills', label: 'Repair Bills', color: 'border-amber-150 bg-amber-50/20' },
+                            { id: 'retreadBills', label: 'Retread Bills', color: 'border-indigo-150 bg-indigo-50/20' }
+                          ].map((cat) => {
+                            const catDocs = selectedTyreForProfile.categorizedDocs || {};
+                            const docsList = catDocs[cat.id] || [];
+
+                            return (
+                              <div key={cat.id} className={`p-2.5 border rounded-lg ${cat.color} space-y-2`}>
+                                <div className="flex justify-between items-center">
+                                  <span className="font-bold text-slate-800 text-[10px] uppercase">{cat.label}</span>
+                                  <span className="font-mono text-[9px] px-1.5 py-0.2 bg-white rounded border border-slate-200 font-bold text-slate-500">
+                                    {docsList.length} Files
+                                  </span>
+                                </div>
+
+                                {docsList.length > 0 && (
+                                  <div className="space-y-1 max-h-24 overflow-y-auto">
+                                    {docsList.map((doc, idx) => (
+                                      <div key={idx} className="flex items-center justify-between bg-white px-2 py-1 rounded border border-slate-100 text-[9px] font-mono">
+                                        <span className="truncate text-slate-700 font-bold" title={doc.name}>{doc.name}</span>
+                                        <div className="flex items-center gap-1 shrink-0">
+                                          <span className="text-slate-400">({doc.size})</span>
+                                          <button
+                                            type="button"
+                                            onClick={() => handleRemoveCategorizedFile(selectedTyreForProfile.serialNumber, cat.id, idx)}
+                                            className="text-red-500 hover:text-red-700 hover:bg-red-50 p-0.5 rounded"
+                                            title="Remove File"
+                                          >
+                                            <Trash2 size={10} />
+                                          </button>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+
+                                {/* Small Upload zone for category */}
+                                <div className="flex items-center gap-1.5">
+                                  <input 
+                                    type="file"
+                                    id={`file-${cat.id}`}
+                                    className="hidden"
+                                    onChange={(e) => {
+                                      if (e.target.files && e.target.files[0]) {
+                                        const file = e.target.files[0];
+                                        handleAddCategorizedFile(selectedTyreForProfile.serialNumber, cat.id, file.name, `${(file.size / 1024).toFixed(1)} KB`);
+                                      }
+                                    }}
+                                  />
+                                  <label 
+                                    htmlFor={`file-${cat.id}`}
+                                    className="w-full text-center py-1 bg-white border border-slate-200 hover:border-slate-350 hover:bg-slate-50 font-bold text-[9px] uppercase tracking-wider text-slate-600 rounded cursor-pointer transition flex items-center justify-center gap-1"
+                                  >
+                                    <Upload size={10} />
+                                    <span>Attach document</span>
+                                  </label>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <div className="p-4 text-center border border-dashed border-slate-200 bg-slate-50 text-slate-400 rounded text-[11px] italic">
+                          Please save the tyre asset or load an existing tyre profile first to attach categorized documents.
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Form Action buttons */}
+                <div className="flex flex-col gap-2 pt-2">
+                  <button
+                    type="submit"
+                    className="w-full p-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded uppercase shadow text-xs transition"
+                  >
+                    {selectedTyreForProfile ? 'Save Profile Changes' : 'Save Asset to Master DB'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleAddTyreToMaster(null as any, true)}
+                    className="w-full p-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded uppercase shadow text-xs transition flex items-center justify-center gap-1.5"
+                  >
+                    <CheckSquare size={13} />
+                    <span>{selectedTyreForProfile ? 'Save & Install' : 'Register & Install'}</span>
+                  </button>
+                  {selectedTyreForProfile && (
+                    <div className="grid grid-cols-2 gap-2 mt-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setHistorySearchQuery(selectedTyreForProfile.serialNumber);
+                          setHistoryViewMode('journey');
+                          setActiveSubTab('history');
+                        }}
+                        className="p-2 border border-slate-300 bg-slate-50 hover:bg-slate-100 text-slate-700 font-bold rounded uppercase text-[10px] text-center transition flex items-center justify-center gap-1"
+                      >
+                        <History size={12} />
+                        <span>View Journey</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleClearTyreProfile}
+                        className="p-2 border border-red-200 bg-red-50 hover:bg-red-100 text-red-700 font-bold rounded uppercase text-[10px] text-center transition flex items-center justify-center gap-1"
+                      >
+                        <X size={12} />
+                        <span>Close Profile</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
               </form>
             </div>
 
             {/* Right: Master Database List */}
-            <div className="lg:col-span-2 bg-white p-6 rounded border border-slate-200 shadow-sm space-y-4">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Registered Tyre Assets</span>
+            <div className="lg:col-span-2 bg-white p-5 rounded border border-slate-200 shadow-sm space-y-4">
+              <div className="flex justify-between items-center border-b border-slate-100 pb-2">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">
+                  Asset Rack Database Table
+                </span>
+                <span className="px-2 py-0.5 bg-slate-100 text-slate-700 font-bold font-mono rounded text-[10px]">
+                  {tyres.length} Total Tyres
+                </span>
+              </div>
               <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse text-xs min-w-[500px]">
+                <table className="w-full text-left border-collapse text-xs min-w-[750px]">
                   <thead>
                     <tr className="border-b border-slate-200 text-slate-400 font-bold uppercase text-[9px] font-mono">
+                      <th className="pb-2">Tyre ID</th>
                       <th className="pb-2">Tyre / Serial</th>
-                      <th className="pb-2">Brand & Model</th>
-                      <th className="pb-2">Purchase Details</th>
-                      <th className="pb-2">Warranty Expiry</th>
-                      <th className="pb-2">Location</th>
-                      <th className="pb-2">Stats</th>
-                      <th className="pb-2">Status</th>
-                      <th className="pb-2 text-right">Documents Upload</th>
+                      <th className="pb-2">Brand & Pattern</th>
+                      <th className="pb-2">Purchase & Vendor</th>
+                      <th className="pb-2">Current Location</th>
+                      <th className="pb-2">Stats & Health</th>
+                      <th className="pb-2 text-center">Status</th>
                       <th className="pb-2 text-right pr-2">Actions</th>
                     </tr>
                   </thead>
@@ -2135,28 +2973,24 @@ export default function TyreManagementView({
                     {tyres
                       .filter(t => {
                         const query = searchQuery.toLowerCase();
-                        const tyreNum = (t.tyreNumber || t.serialNumber).toLowerCase();
+                        if (!query) return true;
+                        const tyreNum = (t.tyreNumber || t.serialNumber || '').toLowerCase();
+                        const idStr = (t.tyreId || '').toLowerCase();
                         const vehicleNo = (t.currentVehicle || t.vehicleNo || '').toLowerCase();
                         return (
                           t.serialNumber.toLowerCase().includes(query) || 
                           t.brand.toLowerCase().includes(query) ||
+                          t.model.toLowerCase().includes(query) ||
                           tyreNum.includes(query) ||
+                          idStr.includes(query) ||
                           vehicleNo.includes(query)
                         );
                       })
                       .map((t) => {
-                        const docs = uploadedDocs[t.serialNumber] || [];
                         const tyreNum = t.tyreNumber || t.serialNumber;
-                        const expiry = t.warrantyExpiry || (() => {
-                          try {
-                            const d = new Date(t.purchaseDate);
-                            d.setMonth(d.getMonth() + t.warrantyPeriodMonths);
-                            return d.toISOString().split('T')[0];
-                          } catch {
-                            return 'N/A';
-                          }
-                        })();
                         const vendor = t.vendor || t.vendorName || 'N/A';
+                        const currentTread = t.treadDepth || (t as any).treadDepthMm || 12;
+                        const health = calculateHealthScore(currentTread);
                         
                         // Dynamically find location in active fleet if not explicitly set
                         const location = (() => {
@@ -2172,103 +3006,118 @@ export default function TyreManagementView({
                           return { vehicle: 'N/A', position: 'N/A' };
                         })();
 
+                        // Backwards compatible status display mapper
+                        const displayStatus = t.status || TyreMasterStatus.INVENTORY;
+
                         return (
-                          <tr key={t.serialNumber} className="hover:bg-slate-50 text-xs">
+                          <tr key={t.serialNumber} className={`hover:bg-slate-50 text-xs transition ${
+                            selectedTyreForProfile?.serialNumber === t.serialNumber ? 'bg-blue-50/50 border-l-2 border-l-blue-600' : ''
+                          }`}>
+                            <td className="py-3 font-mono font-bold text-slate-500">
+                              <span className="px-1.5 py-0.5 bg-slate-100 rounded text-[10px]">
+                                {t.tyreId || 'N/A'}
+                              </span>
+                            </td>
                             <td className="py-3 font-sans">
                               <div className="font-bold text-slate-950 font-mono text-xs">{tyreNum}</div>
                               <div className="text-[10px] text-slate-400 font-mono">Serial: {t.serialNumber}</div>
                             </td>
                             <td className="py-3 font-sans">
-                              <div>{t.brand}</div>
-                              <div className="text-[10px] text-slate-400 font-bold uppercase">{t.model} • {t.size}</div>
+                              <div className="font-semibold text-slate-800">{t.brand} {t.model}</div>
+                              <div className="text-[10px] text-slate-400 font-bold uppercase">{t.pattern || 'Rib Pattern'} • {t.size}</div>
                             </td>
                             <td className="py-3 font-sans">
                               <div className="font-mono text-slate-700 font-bold">₹{t.purchaseCost.toLocaleString()}</div>
                               <div className="text-[10px] text-slate-500 font-mono">{t.purchaseDate} • {vendor}</div>
                             </td>
-                            <td className="py-3 font-mono text-[10px] text-slate-600">
-                              {expiry}
-                            </td>
-                            <td className="py-3 font-sans text-[10px]">
-                              {t.status === TyreMasterStatus.ACTIVE ? (
+                            <td className="py-3 font-sans">
+                              {displayStatus === TyreMasterStatus.INSTALLED ? (
                                 <div>
                                   <span className="font-bold text-blue-600 block">{location.vehicle}</span>
                                   <span className="text-slate-500 text-[9px] block">Pos: {location.position}</span>
                                 </div>
                               ) : (
-                                <span className="text-slate-400 italic font-medium">Spare Yard</span>
+                                <span className="text-slate-400 font-semibold uppercase text-[9px] bg-slate-50 px-1 py-0.5 rounded border border-slate-150">
+                                  {displayStatus === TyreMasterStatus.REPAIR ? 'Workshop' : 'Spare Rack'}
+                                </span>
                               )}
                             </td>
                             <td className="py-3 font-sans">
-                              <div className="font-mono text-slate-700 font-bold">{t.currentRunningKm.toLocaleString()} KM</div>
-                              <div className="text-[10px] text-slate-400 font-bold uppercase">Retreads: {t.retreadCount}/3</div>
-                            </td>
-                            <td className="py-3">
-                              <span className={`inline-block px-1.5 py-0.5 rounded text-[9.5px] font-extrabold uppercase tracking-wide text-white ${
-                                t.status === TyreMasterStatus.ACTIVE 
-                                  ? 'bg-blue-600' 
-                                  : t.status === TyreMasterStatus.SPARE 
-                                    ? 'bg-amber-500' 
-                                    : t.status === TyreMasterStatus.RETREAD 
-                                      ? 'bg-purple-600'
-                                      : t.status === TyreMasterStatus.SCRAP
-                                        ? 'bg-red-600'
-                                        : 'bg-slate-500'
-                              }`}>
-                                {t.status}
-                              </span>
-                            </td>
-                            <td className="py-3 text-right">
-                              {/* Integrated Simulated Drag and Drop Upload */}
-                              <div className="flex flex-col items-end space-y-1">
-                                <div 
-                                  onDragEnter={handleDrag}
-                                  onDragOver={handleDrag}
-                                  onDragLeave={handleDrag}
-                                  onDrop={(e) => handleDrop(e, t.serialNumber)}
-                                  onClick={() => fileInputRef.current?.click()}
-                                  className={`border-2 border-dashed rounded px-2 py-1 text-[10px] cursor-pointer transition flex items-center space-x-1 ${
-                                    dragActive ? 'border-blue-500 bg-blue-50 text-blue-600' : 'border-slate-200 hover:border-slate-350 text-slate-500'
-                                  }`}
-                                  title="Drag and Drop file, or Click to select manual invoice/warranty documents"
-                                >
-                                  <Upload size={10} />
-                                  <span>Drop / Click Upload</span>
-                                </div>
-                                <input 
-                                  ref={fileInputRef}
-                                  type="file" 
-                                  className="hidden" 
-                                  onChange={(e) => handleFileInput(e, t.serialNumber)}
-                                />
-                                {docs.length > 0 && (
-                                  <div className="text-[8px] font-bold text-emerald-600 uppercase flex flex-col items-end">
-                                    {docs.map((doc, idx) => (
-                                      <span key={idx} className="flex items-center gap-0.5">
-                                        <CheckCircle2 size={8} /> {doc.name.slice(0, 15)}... ({doc.size})
-                                      </span>
-                                    ))}
-                                  </div>
-                                )}
+                              <div className="font-mono text-slate-700 font-bold">{(t.currentRunningKm || 0).toLocaleString()} KM</div>
+                              <div className="flex items-center gap-1 mt-0.5">
+                                <span className={`text-[9px] font-extrabold uppercase px-1 rounded ${
+                                  health > 75 ? 'bg-emerald-100 text-emerald-800' : health > 50 ? 'bg-orange-100 text-orange-800' : 'bg-red-100 text-red-800'
+                                }`}>
+                                  Health: {health}%
+                                </span>
+                                <span className="text-[9px] text-slate-400 font-bold">Retreads: {t.retreadCount || 0}</span>
                               </div>
                             </td>
+                            <td className="py-3 text-center">
+                              <span className={`inline-block px-2 py-0.5 rounded text-[9.5px] font-extrabold uppercase tracking-wide text-white shadow-sm ${
+                                displayStatus === TyreMasterStatus.INSTALLED 
+                                  ? 'bg-emerald-600' 
+                                  : displayStatus === TyreMasterStatus.INVENTORY
+                                    ? 'bg-blue-600'
+                                    : displayStatus === TyreMasterStatus.REPAIR
+                                      ? 'bg-amber-500'
+                                      : displayStatus === TyreMasterStatus.RETREAD 
+                                        ? 'bg-purple-600'
+                                        : displayStatus === TyreMasterStatus.SCRAP
+                                          ? 'bg-red-650'
+                                          : displayStatus === TyreMasterStatus.RESERVED
+                                            ? 'bg-cyan-600'
+                                            : 'bg-zinc-700'
+                              }`}>
+                                {displayStatus}
+                              </span>
+                            </td>
                             <td className="py-3 text-right pr-2">
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  if (confirm(`Are you sure you want to delete tyre asset ${tyreNum} (Serial: ${t.serialNumber})?`)) {
-                                    setTyres(prev => prev.filter(item => item.serialNumber !== t.serialNumber));
-                                  }
-                                }}
-                                className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded transition"
-                                title="Delete Tyre Asset"
-                              >
-                                <Trash2 size={14} />
-                              </button>
+                              <div className="flex justify-end gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() => handleLoadTyreProfile(t)}
+                                  className="p-1.5 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded transition"
+                                  title="Open Tyre Asset Profile & Documents"
+                                >
+                                  <Sliders size={13} />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setHistorySearchQuery(t.serialNumber);
+                                    setHistoryViewMode('journey');
+                                    setActiveSubTab('history');
+                                  }}
+                                  className="p-1.5 text-purple-600 hover:text-purple-800 hover:bg-purple-50 rounded transition"
+                                  title="View Full Journey Timeline"
+                                >
+                                  <History size={13} />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    if (confirm(`Are you sure you want to delete tyre asset ${tyreNum} (Serial: ${t.serialNumber})?`)) {
+                                      setTyres(prev => prev.filter(item => item.serialNumber !== t.serialNumber));
+                                    }
+                                  }}
+                                  className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded transition"
+                                  title="Delete Tyre Asset"
+                                >
+                                  <Trash2 size={13} />
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         );
                       })}
+                    {tyres.length === 0 && (
+                      <tr>
+                        <td colSpan={8} className="py-8 text-center text-slate-400">
+                          No tyre assets registered. Click Register New Tyre Asset on the left.
+                        </td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -2647,7 +3496,7 @@ export default function TyreManagementView({
                 >
                   <option value="">-- Select Tyre to Retread --</option>
                   {tyres
-                    .filter(t => t.status === TyreMasterStatus.REMOVED || t.status === TyreMasterStatus.SPARE)
+                    .filter(t => t.status === TyreMasterStatus.INVENTORY || (t.status as string) === 'Removed' || (t.status as string) === 'Spare')
                     .map(t => (
                       <option key={t.serialNumber} value={t.serialNumber}>
                         {t.serialNumber} (Completed Retreads: {t.retreadCount}/3)

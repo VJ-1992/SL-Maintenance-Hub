@@ -23,12 +23,19 @@ export enum TyreStatus {
 }
 
 export enum TyreMasterStatus {
-  NEW = "New",
-  ACTIVE = "Active",
-  SPARE = "Spare",
-  REMOVED = "Removed",
+  INVENTORY = "Inventory",
+  INSTALLED = "Installed",
+  REPAIR = "Repair",
   RETREAD = "Retread",
-  SCRAP = "Scrap"
+  SCRAP = "Scrap",
+  RESERVED = "Reserved",
+  LOST = "Lost",
+
+  // Backward compatibility aliases
+  NEW = "Inventory",
+  ACTIVE = "Installed",
+  SPARE = "Inventory",
+  REMOVED = "Inventory"
 }
 
 export interface TyreMaster {
@@ -51,7 +58,41 @@ export interface TyreMaster {
   currentVehicle?: string;
   currentPosition?: string;
   
-  // Documents attachments list (simulated names/URLs)
+  // Upgraded Tyre Asset Management Fields
+  tyreId?: string; // Permanent Auto Generated Tyre ID
+  pattern?: string;
+  loadIndex?: string;
+  tubeTubeless?: string; // "Tube" | "Tubeless"
+  radialNylon?: string;  // "Radial" | "Nylon"
+  mfgWeek?: number;
+  mfgYear?: number;
+  
+  supplierContact?: string;
+  invoiceNumber?: string;
+  purchaseOrderNumber?: string;
+  gstNumber?: string;
+  
+  manufacturerWarranty?: string;
+  dealerWarranty?: string;
+  
+  // Current Assignment Details (Auto Filled)
+  currentAxle?: string;
+  installedDate?: string;
+  supervisor?: string;
+  foreman?: string;
+
+  // Tyre Health & Financial Summaries
+  repairCount?: number;
+  healthScore?: number;
+  totalRepairCost?: number;
+  totalRetreadCost?: number;
+  totalInvestment?: number;
+  costPerKm?: number;
+
+  // Categorized documents
+  categorizedDocs?: { [category: string]: { name: string; size: string; date: string }[] };
+
+  // Documents attachments list (simulated names/URLs for backwards compatibility)
   purchaseInvoiceDoc?: string;
   warrantyCardDoc?: string;
   retreadInvoiceDoc?: string;
