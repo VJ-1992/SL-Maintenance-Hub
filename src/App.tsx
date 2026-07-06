@@ -164,12 +164,37 @@ function sanitizeServiceLog(log: any): ServiceLog {
 }
 
 export default function App() {
-  const [tab, setTab] = useState<string>('dashboard');
+  const [tab, setTab] = useState<string>(() => {
+    const saved = localStorage.getItem('sl_maintenance_active_tab');
+    const validTabs = ['dashboard', 'fleet', 'service', 'tyres', 'notifications', 'reports', 'settings'];
+    if (saved && validTabs.includes(saved)) {
+      return saved;
+    }
+    return 'dashboard';
+  });
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(false);
   const [scrolled, setScrolled] = useState<boolean>(false);
-  const [headerTitle, setHeaderTitle] = useState<{ title: string; subtitle?: string }>({
-    title: 'Dashboard',
-    subtitle: 'Fleet Operations Overview'
+  const [headerTitle, setHeaderTitle] = useState<{ title: string; subtitle?: string }>(() => {
+    const saved = localStorage.getItem('sl_maintenance_active_tab');
+    const initialTab = (saved && ['dashboard', 'fleet', 'service', 'tyres', 'notifications', 'reports', 'settings'].includes(saved)) ? saved : 'dashboard';
+    switch (initialTab) {
+      case 'dashboard':
+        return { title: 'Dashboard', subtitle: 'Fleet Operations Overview' };
+      case 'fleet':
+        return { title: 'Fleet Vehicles', subtitle: 'Manage Registered Trucks' };
+      case 'service':
+        return { title: 'Service Logs', subtitle: 'Maintenance History' };
+      case 'tyres':
+        return { title: 'Tyre Management', subtitle: 'Tyre Lifecycle Monitoring' };
+      case 'notifications':
+        return { title: 'Notification Center', subtitle: 'Recent alerts & events' };
+      case 'reports':
+        return { title: 'Reports', subtitle: 'Analytics & Expenses' };
+      case 'settings':
+        return { title: 'Settings', subtitle: 'Application Configuration' };
+      default:
+        return { title: 'Dashboard', subtitle: 'Fleet Operations Overview' };
+    }
   });
 
   useEffect(() => {
@@ -185,6 +210,7 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    localStorage.setItem('sl_maintenance_active_tab', tab);
     switch (tab) {
       case 'dashboard':
         setHeaderTitle({ title: 'Dashboard', subtitle: 'Fleet Operations Overview' });
