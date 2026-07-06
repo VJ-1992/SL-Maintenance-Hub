@@ -2918,7 +2918,7 @@ export default function TyreManagementView({
                     <span>{selectedTyreForProfile ? 'Save & Install' : 'Register & Install'}</span>
                   </button>
                   {selectedTyreForProfile && (
-                    <div className="grid grid-cols-2 gap-2 mt-1">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-1">
                       <button
                         type="button"
                         onClick={() => {
@@ -3795,7 +3795,7 @@ export default function TyreManagementView({
                     <span className="text-[10px] font-extrabold text-amber-800 uppercase tracking-wider block border-b border-slate-200 pb-1.5 mb-1.5">
                       Register New Tyre to Master Inventory
                     </span>
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       <div>
                         <label className="block font-bold text-slate-500 text-[10px] mb-0.5">Tyre Number (Required)</label>
                         <input
@@ -3819,7 +3819,7 @@ export default function TyreManagementView({
                         />
                       </div>
                     </div>
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                       <div>
                         <label className="block font-bold text-slate-500 text-[10px] mb-0.5">Brand</label>
                         <input
@@ -3851,7 +3851,7 @@ export default function TyreManagementView({
                         />
                       </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       <div>
                         <label className="block font-bold text-slate-500 text-[10px] mb-0.5">Purchase Date</label>
                         <input
@@ -3873,7 +3873,7 @@ export default function TyreManagementView({
                         />
                       </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       <div>
                         <label className="block font-bold text-slate-500 text-[10px] mb-0.5">Vendor Name</label>
                         <input
@@ -3908,7 +3908,7 @@ export default function TyreManagementView({
 
             {/* Shared Fields */}
             <div className="space-y-3 pt-2 border-t border-slate-100">
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block font-bold text-slate-500 mb-1">Old Tyre Removal Reason</label>
                   <input 

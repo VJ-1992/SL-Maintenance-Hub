@@ -135,6 +135,18 @@ interface ComplianceDocCardProps {
 
 function ComplianceDocCard({ name, expiryDate, lastUpdated }: ComplianceDocCardProps) {
   const [isTapped, setIsTapped] = useState(false);
+  const containerRef = React.useRef<HTMLDivElement>(null);
+  const [tooltipState, setTooltipState] = React.useState<{
+    show: boolean;
+    left: number;
+    arrowLeft: number;
+    position: 'top' | 'bottom';
+  }>({
+    show: false,
+    left: -36,
+    arrowLeft: 96,
+    position: 'top'
+  });
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -190,13 +202,51 @@ function ComplianceDocCard({ name, expiryDate, lastUpdated }: ComplianceDocCardP
 
   const updatedDateStr = lastUpdated ? formatDateToShow(lastUpdated.split('T')[0]) : '23-Jun-2026';
 
+  const updateTooltipPosition = () => {
+    if (!containerRef.current) return;
+    const cardEl = containerRef.current;
+    const cardRect = cardEl.getBoundingClientRect();
+    const parentCard = cardEl.closest('.rounded-2xl');
+    if (!parentCard) return;
+    const parentRect = parentCard.getBoundingClientRect();
+
+    const w = 192; // Tooltip width (192px)
+    
+    // Horizontal alignment
+    const L_preferred = (cardRect.width - w) / 2;
+    
+    // Bounds constraints (stay inside parent card + viewport)
+    const L_min = Math.max(parentRect.left + 8 - cardRect.left, 8 - cardRect.left);
+    const L_max = Math.min(parentRect.right - 8 - cardRect.left - w, window.innerWidth - 8 - cardRect.left - w);
+    
+    const L_clamped = Math.max(L_min, Math.min(L_max, L_preferred));
+    
+    // Arrow positioning (center of compliance card relative to tooltip left edge)
+    const arrowLeftPreferred = (cardRect.width / 2) - L_clamped;
+    const arrowLeftClamped = Math.max(12, Math.min(w - 12, arrowLeftPreferred));
+
+    // Vertical alignment: check if there's enough space above the card relative to viewport
+    const hasSpaceAbove = cardRect.top > 100;
+    const position = hasSpaceAbove ? 'top' : 'bottom';
+
+    setTooltipState({
+      show: true,
+      left: L_clamped,
+      arrowLeft: arrowLeftClamped,
+      position
+    });
+  };
+
   return (
     <div 
+      ref={containerRef}
       className={`relative group/doc p-2.5 rounded-xl border ${cardBorder} flex flex-col justify-between text-center transition-all duration-200 hover:shadow-sm hover:border-slate-300 cursor-pointer select-none min-w-0`}
       onClick={(e) => {
         e.stopPropagation();
         setIsTapped(!isTapped);
       }}
+      onMouseEnter={updateTooltipPosition}
+      onMouseLeave={() => setTooltipState(prev => ({ ...prev, show: false }))}
     >
       <div className="space-y-1">
         <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider truncate">
@@ -213,8 +263,19 @@ function ComplianceDocCard({ name, expiryDate, lastUpdated }: ComplianceDocCardP
         </span>
       </div>
 
-      {/* Elegant Hover Tooltip for Desktop */}
-      <div className="pointer-events-none opacity-0 group-hover/doc:opacity-100 transition-all duration-150 absolute z-40 bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 bg-slate-900 text-white text-[10px] p-2.5 rounded-lg shadow-lg text-left whitespace-normal hidden sm:block">
+      {/* Elegant Hover Tooltip for Desktop with dynamic smart positioning */}
+      <div 
+        style={{ 
+          left: `${tooltipState.left}px`,
+          bottom: tooltipState.position === 'top' ? '100%' : 'auto',
+          top: tooltipState.position === 'bottom' ? '100%' : 'auto',
+          marginBottom: tooltipState.position === 'top' ? '8px' : '0px',
+          marginTop: tooltipState.position === 'bottom' ? '8px' : '0px',
+        }}
+        className={`pointer-events-none absolute z-40 w-48 bg-slate-900 text-white text-[10px] p-2.5 rounded-lg shadow-lg text-left whitespace-normal hidden sm:block transition-opacity duration-150 ${
+          tooltipState.show ? 'opacity-100' : 'opacity-0'
+        }`}
+      >
         <div className="space-y-1 font-semibold">
           <p className="text-slate-400 text-[8px] uppercase tracking-wider">{name} Status</p>
           <div className="h-px bg-slate-800 my-1"></div>
@@ -231,7 +292,16 @@ function ComplianceDocCard({ name, expiryDate, lastUpdated }: ComplianceDocCardP
             <span className="font-mono text-white">{updatedDateStr}</span>
           </p>
         </div>
-        <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-slate-900"></div>
+        
+        {/* Responsive indicator arrow */}
+        <div 
+          style={{ left: `${tooltipState.arrowLeft}px` }}
+          className={`absolute -translate-x-1/2 border-4 border-transparent ${
+            tooltipState.position === 'top' 
+              ? 'top-full -mt-1 border-t-slate-900' 
+              : 'bottom-full -mb-1 border-b-slate-900'
+          }`}
+        ></div>
       </div>
 
       {/* Tap Details for Mobile */}
