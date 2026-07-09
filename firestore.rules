@@ -180,6 +180,45 @@ service cloud.firestore {
         && data.read is bool;
     }
 
+    function isValidTripHistory(data) {
+      return data.keys().hasAll(['tripId', 'vehicleNumber', 'driver', 'fromLocation', 'toLocation', 'status', 'createdAt', 'updatedAt'])
+        && data.keys().size() <= 20
+        && data.tripId is string && data.tripId.size() > 0 && data.tripId.size() <= 100
+        && data.vehicleNumber is string && data.vehicleNumber.size() > 0 && data.vehicleNumber.size() <= 100
+        && data.driver is string && data.driver.size() > 0 && data.driver.size() <= 100
+        && data.fromLocation is string && data.fromLocation.size() > 0 && data.fromLocation.size() <= 200
+        && data.toLocation is string && data.toLocation.size() > 0 && data.toLocation.size() <= 200
+        && data.status is string && (data.status == 'Scheduled' || data.status == 'Running' || data.status == 'Completed' || data.status == 'Cancelled')
+        && data.createdAt is string
+        && data.updatedAt is string
+        && (!data.keys().hasAny(['vehicleId']) || data.vehicleId is string)
+        && (!data.keys().hasAny(['supervisor']) || data.supervisor is string)
+        && (!data.keys().hasAny(['party']) || data.party is string)
+        && (!data.keys().hasAny(['startDate']) || data.startDate is string)
+        && (!data.keys().hasAny(['endDate']) || data.endDate is string)
+        && (!data.keys().hasAny(['timeline']) || data.timeline is list)
+        && (!data.keys().hasAny(['distance']) || data.distance is number)
+        && (!data.keys().hasAny(['duration']) || data.duration is string)
+        && (!data.keys().hasAny(['currentOdometer']) || data.currentOdometer is number)
+        && (!data.keys().hasAny(['endingOdometer']) || data.endingOdometer is number)
+        && (!data.keys().hasAny(['remarks']) || data.remarks is string);
+    }
+
+    function isValidAssignmentHistory(data) {
+      return data.keys().hasAll(['historyId', 'vehicleId', 'assignmentType', 'oldValue', 'newValue', 'changedBy', 'date', 'time', 'createdAt'])
+        && data.keys().size() <= 12
+        && data.historyId is string && data.historyId.size() > 0 && data.historyId.size() <= 128
+        && data.vehicleId is string && data.vehicleId.size() > 0 && data.vehicleId.size() <= 100
+        && data.assignmentType is string && (data.assignmentType == 'Driver' || data.assignmentType == 'Supervisor' || data.assignmentType == 'Foreman')
+        && data.oldValue is string
+        && data.newValue is string
+        && data.changedBy is string && data.changedBy.size() > 0 && data.changedBy.size() <= 150
+        && data.date is string
+        && data.time is string
+        && data.createdAt is string
+        && (!data.keys().hasAny(['reason']) || data.reason is string);
+    }
+
     // --- COLLECTION MATCH RULES ---
 
     match /vehicles/{truckNumber} {
@@ -250,6 +289,20 @@ service cloud.firestore {
       allow create: if isSignedIn() && isValidId(notificationId) && isValidNotification(incoming());
       allow update: if isSignedIn() && isValidId(notificationId) && isValidNotification(incoming());
       allow delete: if isSignedIn() && isValidId(notificationId);
+    }
+
+    match /tripHistory/{tripId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(tripId) && isValidTripHistory(incoming()) && exists(/databases/$(database)/documents/vehicles/$(incoming().vehicleNumber));
+      allow update: if isSignedIn() && isValidId(tripId) && isValidTripHistory(incoming()) && incoming().tripId == existing().tripId && incoming().vehicleNumber == existing().vehicleNumber && incoming().createdAt == existing().createdAt;
+      allow delete: if false;
+    }
+
+    match /assignmentHistory/{historyId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(historyId) && isValidAssignmentHistory(incoming());
+      allow update: if isSignedIn() && isValidId(historyId) && isValidAssignmentHistory(incoming()) && incoming().historyId == existing().historyId && incoming().createdAt == existing().createdAt;
+      allow delete: if false;
     }
   }
 }

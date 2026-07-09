@@ -1,15 +1,20 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import Sidebar from './components/Sidebar';
 import DashboardView from './components/DashboardView';
+import HomeDashboardView from './components/HomeDashboardView';
 import FleetVehiclesView from './components/FleetVehiclesView';
 import TyreManagementView from './components/TyreManagementView';
 import ServiceLogsView from './components/ServiceLogsView';
 import ReportsView from './components/ReportsView';
 import NotificationCenterView from './components/NotificationCenterView';
-import { Vehicle, ServiceLog, TyreMaster, TyreHistory, TyreMovement, TyreInspection, TyreExpense, RetreadRecord, ServiceSchedule, CentralNotification, TyreMasterStatus, TyreStatus } from './types';
-import { PRESET_VEHICLES, INITIAL_SERVICE_LOGS, INITIAL_TYRES, INITIAL_TYRE_HISTORY, INITIAL_TYRE_MOVEMENTS, INITIAL_TYRE_INSPECTIONS, INITIAL_TYRE_EXPENSES, INITIAL_RETREAD_RECORDS, INITIAL_SERVICE_SCHEDULES, INITIAL_NOTIFICATIONS } from './data/presets';
+import PartyDirectoryView from './components/PartyDirectoryView';
+import LiveTrackingView from './components/LiveTrackingView';
+import SettingsView from './components/SettingsView';
+import { Vehicle, ServiceLog, TyreMaster, TyreHistory, TyreMovement, TyreInspection, TyreExpense, RetreadRecord, ServiceSchedule, CentralNotification, TyreMasterStatus, TyreStatus, TripHistoryRecord } from './types';
+import { PRESET_VEHICLES, INITIAL_SERVICE_LOGS, INITIAL_TYRES, INITIAL_TYRE_HISTORY, INITIAL_TYRE_MOVEMENTS, INITIAL_TYRE_INSPECTIONS, INITIAL_TYRE_EXPENSES, INITIAL_RETREAD_RECORDS, INITIAL_SERVICE_SCHEDULES, INITIAL_NOTIFICATIONS, INITIAL_TRIPS } from './data/presets';
+import { fetchAllTrips } from './services/trips';
 import { ensureSignedIn, fetchCollection, writeDocument, removeDocument } from './services/firebase';
-import { Menu, Search, Bell, Settings } from 'lucide-react';
+import { Menu, Search, Bell, Settings as SettingsIcon, Home, Truck, Compass } from 'lucide-react';
 
 function sanitizeTyre(t: any): TyreMaster {
   const serialNumber = (t.serialNumber || '').trim().toUpperCase();
@@ -166,18 +171,20 @@ function sanitizeServiceLog(log: any): ServiceLog {
 export default function App() {
   const [tab, setTab] = useState<string>(() => {
     const saved = localStorage.getItem('sl_maintenance_active_tab');
-    const validTabs = ['dashboard', 'fleet', 'service', 'tyres', 'notifications', 'reports', 'settings'];
+    const validTabs = ['home', 'dashboard', 'fleet', 'service', 'tyres', 'notifications', 'reports', 'parties', 'tracking', 'settings'];
     if (saved && validTabs.includes(saved)) {
       return saved;
     }
-    return 'dashboard';
+    return 'home';
   });
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(false);
   const [scrolled, setScrolled] = useState<boolean>(false);
   const [headerTitle, setHeaderTitle] = useState<{ title: string; subtitle?: string }>(() => {
     const saved = localStorage.getItem('sl_maintenance_active_tab');
-    const initialTab = (saved && ['dashboard', 'fleet', 'service', 'tyres', 'notifications', 'reports', 'settings'].includes(saved)) ? saved : 'dashboard';
+    const initialTab = (saved && ['home', 'dashboard', 'fleet', 'service', 'tyres', 'notifications', 'reports', 'parties', 'tracking', 'settings'].includes(saved)) ? saved : 'home';
     switch (initialTab) {
+      case 'home':
+        return { title: 'Home Dashboard', subtitle: 'Select Fleet Management Module' };
       case 'dashboard':
         return { title: 'Dashboard', subtitle: 'Fleet Operations Overview' };
       case 'fleet':
@@ -190,28 +197,27 @@ export default function App() {
         return { title: 'Notification Center', subtitle: 'Recent alerts & events' };
       case 'reports':
         return { title: 'Reports', subtitle: 'Analytics & Expenses' };
+      case 'parties':
+        return { title: 'Party Directory', subtitle: 'Transporters & Logistics Partners' };
+      case 'tracking':
+        return { title: 'Live Tracking', subtitle: 'Real-time GPS Trip Monitoring' };
       case 'settings':
         return { title: 'Settings', subtitle: 'Application Configuration' };
       default:
-        return { title: 'Dashboard', subtitle: 'Fleet Operations Overview' };
+        return { title: 'Home Dashboard', subtitle: 'Select Fleet Management Module' };
     }
   });
 
-  useEffect(() => {
-    const handleScroll = () => {
-      if (window.scrollY > 10) {
-        setScrolled(true);
-      } else {
-        setScrolled(false);
-      }
-    };
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
+  const [isSeeding, setIsSeeding] = useState<boolean>(false);
+
+  // Scrolled state is updated dynamically via the main content area's onScroll event
 
   useEffect(() => {
     localStorage.setItem('sl_maintenance_active_tab', tab);
     switch (tab) {
+      case 'home':
+        setHeaderTitle({ title: 'Home Dashboard', subtitle: 'Select Fleet Management Module' });
+        break;
       case 'dashboard':
         setHeaderTitle({ title: 'Dashboard', subtitle: 'Fleet Operations Overview' });
         break;
@@ -230,13 +236,79 @@ export default function App() {
       case 'reports':
         setHeaderTitle({ title: 'Reports', subtitle: 'Analytics & Expenses' });
         break;
+      case 'parties':
+        setHeaderTitle({ title: 'Party Directory', subtitle: 'Transporters & Logistics Partners' });
+        break;
+      case 'tracking':
+        setHeaderTitle({ title: 'Live Tracking', subtitle: 'Real-time GPS Trip Monitoring' });
+        break;
       case 'settings':
         setHeaderTitle({ title: 'Settings', subtitle: 'Application Configuration' });
         break;
       default:
-        setHeaderTitle({ title: 'Dashboard', subtitle: 'Fleet Operations Overview' });
+        setHeaderTitle({ title: 'Home Dashboard', subtitle: 'Select Fleet Management Module' });
     }
   }, [tab]);
+
+  // Database Seed Action
+  const handleSeedDatabase = async () => {
+    try {
+      setIsSeeding(true);
+      await ensureSignedIn();
+      console.log("Forced reseed started");
+
+      // Seed Vehicles
+      for (const vehicle of PRESET_VEHICLES) {
+        await writeDocument('vehicles', vehicle.truckNumber, vehicle);
+      }
+      setVehicles(PRESET_VEHICLES);
+
+      // Seed Tyres
+      const sanitizedTyres = INITIAL_TYRES.map((t, idx) => {
+        const st = sanitizeTyre(t);
+        if (!st.tyreId) {
+          st.tyreId = `TY${String(idx + 1).padStart(6, '0')}`;
+        }
+        return st;
+      });
+      for (const tyre of sanitizedTyres) {
+        let docId = tyre.tyreNumber ? tyre.tyreNumber.trim().toUpperCase() : tyre.serialNumber;
+        await writeDocument('tyres', docId, tyre);
+      }
+      setTyres(sanitizedTyres);
+
+      // Seed Service Logs
+      const sanitizedLogs = INITIAL_SERVICE_LOGS.map(log => sanitizeServiceLog(log));
+      for (const log of sanitizedLogs) {
+        await writeDocument('serviceLogs', log.id, log);
+      }
+      setServiceLogs(sanitizedLogs);
+
+      // Seed Notifications
+      for (const notif of INITIAL_NOTIFICATIONS) {
+        const mapped = {
+          id: notif.id,
+          vehicleNo: notif.truckNumber || '',
+          type: notif.type,
+          title: notif.title,
+          message: notif.message,
+          priority: notif.severity || 'low',
+          status: notif.isRead ? 'read' : 'unread',
+          createdAt: notif.date || new Date().toISOString().split('T')[0],
+          read: notif.isRead
+        };
+        await writeDocument('notifications', notif.id, mapped);
+      }
+      setNotifications(INITIAL_NOTIFICATIONS);
+
+      alert("All preset records loaded & synchronized with Cloud Firestore successfully!");
+    } catch (err) {
+      console.error("Failed to seed database:", err);
+      alert("Seeding failed. Please check your network and try again.");
+    } finally {
+      setIsSeeding(false);
+    }
+  };
 
   // Cross-view state synchronization: which vehicle is selected when jumping to the Tyre Management tab!
   const [selectedTruckNumForTyres, setSelectedTruckNumForTyres] = useState<string>('');
@@ -319,6 +391,9 @@ export default function App() {
 
   const [notifications, setNotifications] = useState<CentralNotification[]>([]);
   const [isNotificationsLoaded, setIsNotificationsLoaded] = useState(false);
+
+  const [tripHistory, setTripHistory] = useState<TripHistoryRecord[]>([]);
+  const [isTripHistoryLoaded, setIsTripHistoryLoaded] = useState<boolean>(false);
 
   const vehiclesWithLiveTyres = useMemo(() => {
     return vehicles.map(vehicle => {
@@ -1238,6 +1313,58 @@ export default function App() {
     loadInitialNotifications();
   }, []);
 
+  // Load trip history from Firestore on mount
+  useEffect(() => {
+    const loadInitialTripHistory = async () => {
+      try {
+        await ensureSignedIn();
+        console.log("Firestore Connected - Trip History");
+
+        const firestoreTrips = await fetchAllTrips();
+
+        if (firestoreTrips && firestoreTrips.length > 0) {
+          const unique = Array.from(new Map(firestoreTrips.map(item => [item.tripId, item])).values());
+          unique.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+          setTripHistory(unique);
+          console.log("Trip History Loaded from Firestore:", unique.length);
+        } else {
+          console.log("Seeding INITIAL_TRIPS to Firestore...");
+          const seeded: TripHistoryRecord[] = [];
+          for (const trip of INITIAL_TRIPS) {
+            await writeDocument('tripHistory', trip.tripId, trip);
+            seeded.push(trip);
+          }
+          setTripHistory(seeded);
+          console.log("Trip History Seeded & Loaded");
+        }
+      } catch (error) {
+        console.error("Error loading trip history from Firestore:", error);
+        setTripHistory(INITIAL_TRIPS);
+      } finally {
+        setIsTripHistoryLoaded(true);
+      }
+    };
+
+    loadInitialTripHistory();
+  }, []);
+
+  // Sync tripHistory state modifications to Firestore
+  useEffect(() => {
+    if (!isTripHistoryLoaded) return;
+
+    const syncTripsToFirestore = async () => {
+      try {
+        for (const trip of tripHistory) {
+          await writeDocument('tripHistory', trip.tripId, trip);
+        }
+      } catch (error) {
+        console.error("Error syncing trip history to Firestore:", error);
+      }
+    };
+
+    syncTripsToFirestore();
+  }, [tripHistory, isTripHistoryLoaded]);
+
   // Run automatic notifications generation once everything is loaded
   useEffect(() => {
     if (!isVehiclesLoaded || !isTyresLoaded || !isNotificationsLoaded) return;
@@ -1298,6 +1425,17 @@ export default function App() {
   // Tab Dispatcher
   const renderTabContent = () => {
     switch (tab) {
+      case 'home':
+        return (
+          <HomeDashboardView 
+            vehicles={vehiclesWithLiveTyres} 
+            serviceLogs={serviceLogs} 
+            serviceSchedules={serviceSchedules}
+            notifications={notifications}
+            setTab={setTab}
+            tyres={tyres}
+          />
+        );
       case 'dashboard':
         return (
           <DashboardView 
@@ -1328,6 +1466,8 @@ export default function App() {
               setSelectedTruckNumForTyres(num);
               setTab('tyres');
             }}
+            tripHistory={tripHistory}
+            setTripHistory={setTripHistory}
           />
         );
       case 'service':
@@ -1383,6 +1523,25 @@ export default function App() {
             retreadRecords={retreadRecords}
           />
         );
+      case 'parties':
+        return (
+          <PartyDirectoryView />
+        );
+      case 'tracking':
+        return (
+          <LiveTrackingView 
+            vehicles={vehiclesWithLiveTyres} 
+            setVehicles={setVehicles} 
+          />
+        );
+      case 'settings':
+        return (
+          <SettingsView 
+            vehicles={vehiclesWithLiveTyres} 
+            onSeedDatabase={handleSeedDatabase}
+            isSeeding={isSeeding}
+          />
+        );
       default:
         return (
           <DashboardView 
@@ -1400,8 +1559,80 @@ export default function App() {
     }
   };
 
+  // Global search implementation
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showSearchResults, setShowSearchResults] = useState(false);
+
+  const searchResults = useMemo(() => {
+    if (!searchQuery.trim()) return [];
+    const q = searchQuery.toLowerCase().trim();
+    const results: Array<{
+      id: string;
+      category: 'Vehicle' | 'Service Log' | 'Tyre';
+      title: string;
+      subtitle: string;
+      tab: string;
+    }> = [];
+
+    // Search vehicles
+    vehiclesWithLiveTyres.forEach(v => {
+      const routeStr = v.currentTripFrom && v.currentTripTo ? `${v.currentTripFrom} → ${v.currentTripTo}` : '';
+      if (
+        v.truckNumber.toLowerCase().includes(q) || 
+        v.driverName.toLowerCase().includes(q) || 
+        (v.supervisorName && v.supervisorName.toLowerCase().includes(q)) ||
+        (routeStr && routeStr.toLowerCase().includes(q))
+      ) {
+        results.push({
+          id: `vehicle-${v.truckNumber}`,
+          category: 'Vehicle',
+          title: v.truckNumber,
+          subtitle: `Driver: ${v.driverName} | Route: ${routeStr || 'Local'}`,
+          tab: 'fleet'
+        });
+      }
+    });
+
+    // Search service logs
+    serviceLogs.forEach(l => {
+      if (
+        l.id.toLowerCase().includes(q) ||
+        l.truckNumber.toLowerCase().includes(q) ||
+        l.description.toLowerCase().includes(q) ||
+        (l.workshop && l.workshop.toLowerCase().includes(q))
+      ) {
+        results.push({
+          id: `service-${l.id}`,
+          category: 'Service Log',
+          title: `${l.truckNumber} - ${l.description}`,
+          subtitle: `Cost: ₹${l.cost.toLocaleString()} | Date: ${l.date} | Workshop: ${l.workshop || 'Primary'}`,
+          tab: 'service'
+        });
+      }
+    });
+
+    // Search tyres
+    tyres.forEach(t => {
+      if (
+        t.serialNumber.toLowerCase().includes(q) ||
+        (t.tyreNumber && t.tyreNumber.toLowerCase().includes(q)) ||
+        t.brand.toLowerCase().includes(q)
+      ) {
+        results.push({
+          id: `tyre-${t.serialNumber}`,
+          category: 'Tyre',
+          title: `Tyre: ${t.serialNumber} (${t.brand})`,
+          subtitle: `Status: ${t.status} | Vehicle: ${t.currentVehicle || 'Spare'}`,
+          tab: 'tyres'
+        });
+      }
+    });
+
+    return results.slice(0, 8);
+  }, [searchQuery, vehiclesWithLiveTyres, serviceLogs, tyres]);
+
   return (
-    <div className="flex bg-[#f1f5f9] min-h-screen text-[#1e293b] font-sans selection:bg-blue-600 selection:text-white">
+    <div className="flex bg-[#F8FAFC] h-screen overflow-hidden text-slate-800 font-sans selection:bg-blue-600 selection:text-white">
       
       {/* Sidebar Navigation panel */}
       <Sidebar 
@@ -1413,85 +1644,241 @@ export default function App() {
       />
 
       {/* Main layout container */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
         
-        {/* Top Navbar details */}
+        {/* Sticky/Fixed Top Navbar details */}
         <header 
           style={{
-            height: 'calc(60px + env(safe-area-inset-top, 0px))',
+            height: 'calc(64px + env(safe-area-inset-top, 0px))',
             paddingTop: 'env(safe-area-inset-top, 0px)',
           }}
-          className={`w-full flex-shrink-0 bg-white border-b border-slate-200/80 px-4 md:px-8 sticky md:static top-0 md:top-auto z-[1000] md:z-auto flex items-center transition-all duration-200 ${
-            scrolled ? 'max-md:shadow-[0_2px_12px_rgba(0,0,0,0.08)] max-md:border-b-transparent' : ''
+          className={`w-full flex-shrink-0 bg-white border-b border-slate-100 px-4 md:px-8 sticky top-0 z-30 flex items-center transition-all duration-200 ${
+            scrolled ? 'shadow-[0_2px_12px_rgba(15,23,42,0.04)] border-b-slate-200/50' : ''
           }`}
         >
-          <div className="flex items-center justify-between w-full h-full">
-            {/* Left/Center Part */}
-            <div className="flex items-center gap-[14px] min-w-0 flex-1">
-              {/* Hamburger Menu Icon */}
+          <div className="flex items-center justify-between w-full h-full gap-4">
+            
+            {/* Left: Branding & Mobile Menu Control */}
+            <div className="flex items-center gap-3 min-w-0">
               <button
                 onClick={() => setSidebarOpen(true)}
-                className="md:hidden p-1.5 -ml-1 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors focus:outline-none shrink-0"
+                className="md:hidden p-2 text-slate-500 hover:text-slate-900 hover:bg-slate-50 rounded-xl transition-colors focus:outline-none shrink-0"
                 aria-label="Open sidebar"
               >
                 <Menu size={20} className="stroke-[2.5]" />
               </button>
 
-              {/* Title and Subtitle */}
-              <div className="flex flex-col min-w-0 select-none">
-                <h1 className="text-[18px] font-bold text-slate-900 leading-none tracking-tight truncate">
-                  {headerTitle.title}
-                </h1>
-                {headerTitle.subtitle && (
-                  <span className="text-[12px] text-slate-500 font-medium tracking-tight mt-0.5 truncate max-[359px]:hidden">
-                    {headerTitle.subtitle}
-                  </span>
+              {/* Title and navigation link */}
+              <div className="flex items-center min-w-0 select-none">
+                {tab === 'home' ? (
+                  <div className="flex items-center gap-2">
+                    <div className="bg-blue-600/10 p-1.5 rounded-xl text-blue-600 flex items-center justify-center shrink-0">
+                      <Truck size={14} className="stroke-[2.5]" />
+                    </div>
+                    <h1 className="text-sm md:text-base font-semibold text-slate-900 leading-none tracking-tight truncate">
+                      SL Maintenance Hub
+                    </h1>
+                  </div>
+                ) : (
+                  <button 
+                    onClick={() => setTab('home')}
+                    className="text-sm md:text-base font-semibold text-slate-900 hover:text-blue-600 transition-colors duration-150 focus:outline-none text-left tracking-tight cursor-pointer"
+                  >
+                    Dashboard
+                  </button>
                 )}
               </div>
             </div>
 
-            {/* Right: Reserve space for future action icons (Notifications, Search, Settings) */}
-            <div className="flex items-center gap-1 sm:gap-2 text-slate-400 shrink-0">
-              <button 
-                className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-xl transition-colors duration-150" 
-                aria-label="Search"
-                title="Search (Coming Soon)"
-              >
-                <Search size={18} />
-              </button>
+            {/* Middle: SaaS Header Search Bar with Results Popup */}
+            <div className="hidden sm:block flex-1 max-w-md relative">
+              <div className="relative">
+                <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                <input
+                  type="text"
+                  placeholder="Global Search (Trucks, Tyres, Service logs...)"
+                  value={searchQuery}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    setShowSearchResults(true);
+                  }}
+                  onFocus={() => setShowSearchResults(true)}
+                  className="w-full bg-slate-50 hover:bg-slate-100/70 focus:bg-white text-xs text-slate-800 placeholder-slate-400 font-medium pl-10 pr-4 py-2 rounded-xl border border-slate-200/60 focus:border-blue-400 focus:outline-none focus:ring-4 focus:ring-blue-500/5 transition-all duration-150"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400 hover:text-slate-600 uppercase focus:outline-none"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+
+              {/* Floating search dropdown popup */}
+              {showSearchResults && searchQuery.trim() && (
+                <>
+                  <div 
+                    className="fixed inset-0 z-40" 
+                    onClick={() => setShowSearchResults(false)} 
+                  />
+                  <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-slate-200/80 rounded-2xl shadow-xl z-50 overflow-hidden max-h-96 overflow-y-auto">
+                    <div className="p-3 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
+                      <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
+                        Search Results
+                      </span>
+                      <span className="text-[9px] font-bold text-slate-400 font-mono">
+                        {searchResults.length} Match(es)
+                      </span>
+                    </div>
+
+                    {searchResults.length > 0 ? (
+                      <div className="py-1.5 divide-y divide-slate-50">
+                        {searchResults.map((result) => (
+                          <button
+                            key={result.id}
+                            onClick={() => {
+                              setTab(result.tab);
+                              setSearchQuery('');
+                              setShowSearchResults(false);
+                            }}
+                            className="w-full text-left px-4 py-2.5 hover:bg-slate-50 flex items-start gap-3 transition duration-150 cursor-pointer"
+                          >
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-0.5">
+                                <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-md bg-blue-50 text-blue-600 border border-blue-100/30 font-mono shrink-0">
+                                  {result.category}
+                                </span>
+                                <h4 className="text-xs font-bold text-slate-800 truncate">
+                                  {result.title}
+                                </h4>
+                              </div>
+                              <p className="text-[10px] text-slate-400 truncate font-semibold">
+                                {result.subtitle}
+                              </p>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="p-6 text-center text-xs text-slate-400 font-medium">
+                        No matches found for "{searchQuery}"
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Right: SaaS Toolbar Controls (Search icon for mobile, notifications count, profile avatar) */}
+            <div className="flex items-center gap-1.5 sm:gap-2 text-slate-400 shrink-0">
+              
+              {/* Notifications Button */}
               <button 
                 onClick={() => setTab('notifications')}
-                className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-xl transition-colors duration-150 relative" 
+                className={`p-2 hover:bg-slate-50 rounded-xl transition-colors duration-150 relative cursor-pointer ${
+                  tab === 'notifications' ? 'text-blue-600 bg-blue-50/50' : 'text-slate-500 hover:text-slate-900'
+                }`} 
                 aria-label="Notifications"
                 title="Notifications"
               >
-                <Bell size={18} />
+                <Bell size={18} className="stroke-[1.8]" />
                 {notifications.filter(n => !n.isRead).length > 0 && (
-                  <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+                  <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse ring-2 ring-white" />
                 )}
               </button>
+
+              {/* Settings Button */}
               <button 
-                className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-xl transition-colors duration-150" 
+                onClick={() => setTab('settings')}
+                className={`p-2 hover:bg-slate-50 rounded-xl transition-colors duration-150 cursor-pointer ${
+                  tab === 'settings' ? 'text-blue-600 bg-blue-50/50' : 'text-slate-500 hover:text-slate-900'
+                }`} 
                 aria-label="Settings"
-                title="Settings (Coming Soon)"
+                title="Settings"
               >
-                <Settings size={18} />
+                <SettingsIcon size={18} className="stroke-[1.8]" />
               </button>
+
+              {/* Separation line */}
+              <div className="h-6 w-px bg-slate-200/70 mx-1 hidden sm:block" />
+
+              {/* User Profile Block */}
+              <div className="flex items-center gap-2 select-none pl-1">
+                <div className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs flex items-center justify-center border border-slate-200/60 shadow-xs cursor-pointer transition-all">
+                  AD
+                </div>
+                <div className="hidden lg:flex flex-col text-left leading-none">
+                  <span className="text-xs font-bold text-slate-800">Admin</span>
+                  <span className="text-[9px] text-slate-400 font-bold tracking-tight mt-0.5">Fleet Manager</span>
+                </div>
+              </div>
+
             </div>
           </div>
         </header>
 
-        {/* Dynamic page container */}
-        <main className="flex-1 p-4 sm:p-6 md:p-8 max-w-7xl w-full mx-auto space-y-6">
-          {renderTabContent()}
-        </main>
+        {/* Scrollable content container */}
+        <div 
+          onScroll={(e) => {
+            setScrolled(e.currentTarget.scrollTop > 10);
+          }}
+          className="flex-1 overflow-y-auto flex flex-col min-h-0 pb-20 md:pb-0"
+        >
+          {/* Dynamic page container with spacious layout */}
+          <main className="flex-1 p-4 sm:p-6 md:p-8 max-w-7xl w-full mx-auto space-y-6">
+            {renderTabContent()}
+          </main>
 
-        {/* Humble and Clean footer layout */}
-        <footer className="h-10 bg-slate-50 border-t px-8 flex items-center justify-between text-[10px] text-slate-400 uppercase tracking-widest font-mono">
-          <div>Environment: Production v4.0.2</div>
-          <div>Firestore: Connected • Sync: 12ms</div>
-        </footer>
+          {/* Humble and Clean footer layout */}
+          <footer className="h-10 bg-slate-50 border-t border-slate-100 px-8 flex items-center justify-between text-[10px] text-slate-400 uppercase tracking-widest font-mono shrink-0">
+            <div>Environment: Production v4.0.2</div>
+            <div>Firestore: Connected • Sync: 12ms</div>
+          </footer>
+        </div>
 
+      </div>
+
+      {/* Bottom Mobile Navigation bar */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-100 z-50 shadow-[0_-4px_16px_rgba(15,23,42,0.04)] px-4 py-2 flex items-center justify-around pb-[calc(10px+env(safe-area-inset-bottom,0px))] select-none">
+        {[
+          { id: 'home', name: 'Hub', icon: Home },
+          { id: 'fleet', name: 'Fleet', icon: Truck },
+          { id: 'tracking', name: 'Tracking', icon: Compass },
+          { id: 'notifications', name: 'Alerts', icon: Bell, badge: notifications.filter(n => !n.isRead).length },
+          { id: 'settings', name: 'Settings', icon: SettingsIcon },
+        ].map(item => {
+          const Icon = item.icon;
+          const isActive = tab === item.id;
+          return (
+            <button
+              key={item.id}
+              onClick={() => setTab(item.id)}
+              className="flex flex-col items-center justify-center p-1.5 focus:outline-none relative min-w-[56px] cursor-pointer animate-none"
+            >
+              <div className="relative">
+                <Icon
+                  size={20}
+                  className={`transition-colors duration-200 ${
+                    isActive ? 'text-blue-600' : 'text-slate-400'
+                  }`}
+                />
+                {item.badge && item.badge > 0 ? (
+                  <span className="absolute -top-1.5 -right-2.5 bg-red-500 text-white text-[8px] font-extrabold h-4 min-w-4 px-1 flex items-center justify-center rounded-full border border-white">
+                    {item.badge}
+                  </span>
+                ) : null}
+              </div>
+              <span
+                className={`text-[9px] font-extrabold uppercase tracking-wider mt-1 transition-colors duration-200 ${
+                  isActive ? 'text-blue-600' : 'text-slate-400'
+                }`}
+              >
+                {item.name}
+              </span>
+            </button>
+          );
+        })}
       </div>
 
     </div>

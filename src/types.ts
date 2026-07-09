@@ -221,6 +221,7 @@ export interface Vehicle {
   tripStartDate?: string;
   tripStatus?: 'Planned' | 'In Transit' | 'Reached Destination' | 'Completed';
   partyName?: string;
+  currentTripId?: string;
   
   // Phase 2 updated template mapping fields
   vehicleTemplate?: string;
@@ -317,3 +318,82 @@ export interface MaintenanceAnalytics {
   monthlyCosts: { [month: string]: number };
   yearlyCosts: { [year: string]: number };
 }
+
+export interface TripTimelineEvent {
+  eventName: string;
+  date: string;
+  time: string;
+  user: string;
+  remarks?: string;
+}
+
+export interface DeliveryPoint {
+  id: string;
+  location: string;
+  date: string;
+  time: string;
+  remarks?: string;
+  quantityDelivered?: string;
+  proofPhoto?: string; // photo
+  status: 'Pending' | 'Reached' | 'Delivered' | 'Skipped';
+  receiverName?: string;
+  receiverMobile?: string;
+  receiverSignature?: string;
+  invoiceNumber?: string;
+  podNumber?: string;
+  deliveryRemarks?: string;
+  deliveryTime?: string;
+  gpsLocation?: string;
+}
+
+export interface TripHistoryRecord {
+  tripId: string;
+  vehicleId?: string;
+  vehicleNumber: string;
+  driver: string;
+  driverId?: string;
+  driverName?: string;
+  driverMobile?: string;
+  supervisor?: string;
+  supervisorId?: string;
+  supervisorName?: string;
+  foremanId?: string;
+  foremanName?: string;
+  party?: string;
+  fromLocation: string;
+  toLocation: string;
+  startDate?: string;
+  endDate?: string;
+  status: 'Scheduled' | 'Dispatched' | 'Loading' | 'Running' | 'Partial Delivery' | 'Final Delivery' | 'Completed' | 'Cancelled';
+  timeline: TripTimelineEvent[];
+  distance?: number;
+  duration?: string;
+  currentOdometer?: number;
+  endingOdometer?: number;
+  remarks?: string;
+  createdAt: string;
+  updatedAt: string;
+  deliveryPoints?: DeliveryPoint[];
+  documents?: {
+    invoice?: string;
+    lr?: string;
+    eWayBill?: string;
+    pod?: string;
+    photos?: string[];
+    other?: string[];
+  };
+}
+
+export interface AssignmentHistoryRecord {
+  historyId: string;
+  vehicleId: string;
+  assignmentType: 'Driver' | 'Supervisor' | 'Foreman';
+  oldValue: string;
+  newValue: string;
+  changedBy: string;
+  date: string;
+  time: string;
+  reason?: string;
+  createdAt: string;
+}
+

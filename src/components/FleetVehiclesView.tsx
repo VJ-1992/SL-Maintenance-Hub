@@ -1,6 +1,10 @@
-import React, { useState } from 'react';
-import { Vehicle, VehicleManufacturer, ServiceType, TyreStatus, ServiceLog, ServiceSchedule } from '../types';
+import React, { useState, useMemo } from 'react';
+import { Vehicle, VehicleManufacturer, ServiceType, TyreStatus, ServiceLog, ServiceSchedule, TripHistoryRecord, AssignmentHistoryRecord } from '../types';
 import { generateDefaultTyres } from '../data/presets';
+import { autoSyncTripFromVehicleChange, fetchAllTrips } from '../services/trips';
+import TripHistoryView from './TripHistoryView';
+import AssignmentHistoryModal from './AssignmentHistoryModal';
+import { writeDocument } from '../services/firebase';
 import { 
   Plus, 
   Trash2, 
@@ -22,7 +26,14 @@ import {
   Map,
   ShieldCheck,
   Activity,
-  DollarSign
+  DollarSign,
+  FileText,
+  Download,
+  Printer,
+  Filter,
+  ArrowUpDown,
+  Check,
+  RotateCcw
 } from 'lucide-react';
 
 const formatDateToShow = (dateStr?: string) => {
@@ -386,6 +397,8 @@ interface VehicleCardProps {
   onEdit: () => void;
   onDelete: () => void;
   onOpenTyres: () => void;
+  onOpenTripHistory: () => void;
+  onOpenAssignmentHistory: () => void;
   serviceLogs: ServiceLog[];
   serviceSchedules: ServiceSchedule[];
   calculateServiceStatus: (truckNum: string) => any;
@@ -398,6 +411,8 @@ const VehicleCard = React.memo(function VehicleCard({
   onEdit,
   onDelete,
   onOpenTyres,
+  onOpenTripHistory,
+  onOpenAssignmentHistory,
   serviceLogs,
   serviceSchedules,
   calculateServiceStatus
@@ -408,14 +423,14 @@ const VehicleCard = React.memo(function VehicleCard({
     <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden hover:shadow-md transition duration-200 flex flex-col justify-between">
       {/* Card Top Branding & Health */}
       <div className="p-4 sm:p-6 border-b border-slate-150/40 space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 w-full min-w-0">
+        <div className="flex items-start justify-between gap-4 w-full min-w-0">
           <div className="min-w-0 flex-1">
             <h3 className="text-xl font-bold font-mono tracking-tight text-slate-900 truncate">
               {vehicle.truckNumber}
             </h3>
-            {/* Display Selected Template under the Vehicle Number */}
-            <div className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider mt-0.5">
-              Template: {vehicle.vehicleTemplate || (
+            {/* Display Selected Template under the Vehicle Number as a subtitle */}
+            <div className="text-xs font-semibold text-slate-500 mt-0.5" id={`vehicle-subtitle-${vehicle.truckNumber}`}>
+              {vehicle.vehicleTemplate || (
                 vehicle.manufacturer === VehicleManufacturer.TATA
                   ? (vehicle.tyresCount === 14 ? "Tata (14-Wheelers)" : (vehicle.tyresCount === 10 ? "Tata (10-Wheelers)" : "Tata (12-Wheelers)"))
                   : (vehicle.tyresCount === 14 ? "Ashok Leyland (14-Wheelers)" : "Ashok Leyland (12-Wheelers)")
@@ -423,65 +438,25 @@ const VehicleCard = React.memo(function VehicleCard({
             </div>
             
             {/* Vehicle Status Badge (Requirement 4) */}
-            <div className="mt-1">
+            <div className="mt-2.5">
               {getVehicleStatusBadge(vehicle.vehicleStatus || vehicle.status)}
             </div>
+          </div>
 
-            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1.5 text-xs text-slate-500 font-semibold">
-              <span className={`h-[22px] px-2 py-0 inline-flex items-center text-[10px] font-extrabold uppercase tracking-wider rounded-md border whitespace-nowrap shrink-0 ${
-                vehicle.manufacturer === VehicleManufacturer.TATA 
-                  ? 'bg-blue-50/80 text-blue-700 border-blue-200/50' 
-                  : 'bg-amber-50/80 text-amber-700 border-amber-200/50'
-              }`}>
-                {vehicle.manufacturer}
-              </span>
-              <span className="text-slate-300 select-none">|</span>
-              <span className="whitespace-nowrap shrink-0 font-medium text-slate-600 text-xs">
-                {vehicle.tyresCount} Tyres
-              </span>
-              {vehicle.hasLiftAxle === true && vehicle.manufacturer !== VehicleManufacturer.ASHOK_LEYLAND && (
-                <>
-                  <span className="text-slate-300 select-none">|</span>
-                  <span className="h-[22px] px-2 py-0 inline-flex items-center text-[10px] bg-purple-50 text-purple-700 border border-purple-200/50 font-extrabold rounded-md whitespace-nowrap shrink-0 uppercase tracking-wider leading-none">
-                    Lift Axle
-                  </span>
-                </>
-              )}
-            </div>
-          </div>
-          
-          {/* Alerts Status Badge & Service Status Reason Container */}
-          <div className="flex flex-row items-center sm:flex-col sm:items-end gap-2 sm:gap-1 shrink-0 mt-2 sm:mt-0 w-full sm:w-auto">
-            {serviceSummary.level === 'red' && (
-              <span className="bg-red-500 text-white px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase flex items-center gap-1 animate-pulse whitespace-nowrap shrink-0">
-                <AlertTriangle size={10} />
-                Overdue
-              </span>
-            )}
-            {serviceSummary.level === 'orange' && (
-              <span className="bg-amber-500 text-white px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase flex items-center gap-1 whitespace-nowrap shrink-0">
-                <Clock size={10} />
-                Due Soon
-              </span>
-            )}
-            {serviceSummary.level === 'green' && (
-              <span className="bg-emerald-500 text-white px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase flex items-center gap-1 whitespace-nowrap shrink-0">
-                <FileCheck size={10} />
-                Upcoming
-              </span>
-            )}
-            {serviceSummary.level === 'neutral' && (
-              <span className="bg-slate-100 text-slate-600 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase whitespace-nowrap shrink-0">
-                Current
-              </span>
-            )}
-            
-            <ServiceReasonText reason={serviceSummary.reason} level={serviceSummary.level} />
-          </div>
+          {/* Enterprise Tyre Map Button on Right Side for Desktop */}
+          <button
+            onClick={onOpenTyres}
+            className="hidden md:flex h-10 items-center gap-2 text-xs font-bold uppercase tracking-wider px-4 bg-slate-900 text-white hover:bg-slate-800 transition duration-200 rounded-xl shadow-md cursor-pointer shrink-0 border border-slate-950"
+            title={`Open Tyre Map Workbench for ${vehicle.truckNumber}`}
+            id={`desktop-header-tyres-${vehicle.truckNumber}`}
+          >
+            <span className="text-sm select-none leading-none">🛞</span>
+            <span>Tyre Map</span>
+          </button>
         </div>
 
         {/* Standardized Information Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-y-4 gap-x-6 pt-2 pb-2">
+        <div className="grid grid-cols-2 gap-y-4 gap-x-6 pt-2 pb-2">
           {/* Driver */}
           <div className="flex items-start space-x-3 text-xs min-w-0">
             <User size={20} className="text-slate-400 shrink-0 mt-0.5" />
@@ -527,7 +502,7 @@ const VehicleCard = React.memo(function VehicleCard({
           </div>
 
           {/* Current Location */}
-          <div className="flex items-start space-x-3 text-xs min-w-0 md:col-span-2">
+          <div className="flex items-start space-x-3 text-xs min-w-0 col-span-2">
             <MapPin size={20} className="text-slate-400 shrink-0 mt-0.5" />
             <div className="min-w-0 flex-1">
               <p className="text-slate-400 uppercase font-bold text-[10px] tracking-wider leading-none">Current Location</p>
@@ -598,6 +573,29 @@ const VehicleCard = React.memo(function VehicleCard({
             </div>
           </div>
         )}
+
+        {/* Next Service Status Badge/Card (Requirement 2) */}
+        <div className={`mt-3 p-3 rounded-xl border flex items-center justify-between gap-3 text-xs ${
+          serviceSummary.level === 'red' ? 'bg-red-50/80 text-red-800 border-red-200/60' :
+          serviceSummary.level === 'orange' ? 'bg-amber-50/80 text-amber-800 border-amber-200/60' :
+          serviceSummary.level === 'green' ? 'bg-emerald-50/80 text-emerald-800 border-emerald-200/60' :
+          'bg-slate-50 text-slate-750 border-slate-200'
+        }`} id={`next-service-badge-${vehicle.truckNumber}`}>
+          <div className="flex items-center gap-2.5">
+            <span className="text-base select-none leading-none">🔧</span>
+            <div>
+              <p className="text-[10px] font-extrabold uppercase tracking-wider opacity-75 leading-none">Next Service</p>
+              <p className="font-extrabold text-xs mt-1.5 leading-none">
+                {serviceSummary.displayMessage}
+              </p>
+            </div>
+          </div>
+          {serviceSummary.reason && (
+            <div className="text-[10px] px-2.5 py-0.5 rounded-lg font-extrabold bg-white/70 border border-current/20 max-w-[180px] truncate uppercase tracking-wide shrink-0" title={serviceSummary.reason}>
+              {serviceSummary.reason}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Collapsible Service Center Timeline View */}
@@ -747,12 +745,13 @@ const VehicleCard = React.memo(function VehicleCard({
       <div className="bg-slate-50 p-4 px-6 border-t border-slate-100">
         {/* Unified Mobile Layout (< 768px) */}
         <div className="flex md:hidden items-center justify-center gap-2">
-          <div className="grid grid-cols-4 gap-2 w-full">
+          <div className="grid grid-cols-3 gap-2 w-full">
             {/* Edit Button */}
             <button
               onClick={onEdit}
               className="h-[48px] flex flex-col items-center justify-center gap-1 bg-white text-slate-700 border border-slate-200 rounded-xl hover:text-slate-950 hover:bg-slate-50 transition shadow-sm text-[10px] font-bold px-1"
               title="Edit Fleet Profile"
+              id={`mobile-edit-${vehicle.truckNumber}`}
             >
               <Edit size={15} />
               <span className="leading-none">Edit</span>
@@ -763,9 +762,21 @@ const VehicleCard = React.memo(function VehicleCard({
               onClick={onDelete}
               className="h-[48px] flex flex-col items-center justify-center gap-1 bg-white text-red-600 border border-slate-200 rounded-xl hover:text-red-700 hover:bg-red-50 transition shadow-sm text-[10px] font-bold px-1"
               title="Delete truck"
+              id={`mobile-delete-${vehicle.truckNumber}`}
             >
               <Trash2 size={15} />
               <span className="leading-none">Delete</span>
+            </button>
+
+            {/* Trip History Button */}
+            <button
+              onClick={onOpenTripHistory}
+              className="h-[48px] flex flex-col items-center justify-center gap-1 bg-white text-slate-700 border border-slate-200 rounded-xl hover:text-slate-950 hover:bg-slate-50 transition shadow-sm text-[10px] font-bold px-1"
+              title="Trip History"
+              id={`mobile-trips-${vehicle.truckNumber}`}
+            >
+              <Activity size={15} className="text-blue-500" />
+              <span className="leading-none">Trips</span>
             </button>
 
             {/* Timeline Button */}
@@ -775,9 +786,21 @@ const VehicleCard = React.memo(function VehicleCard({
                 isExpanded ? 'text-blue-600 border-blue-150 bg-blue-50/20' : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
               }`}
               title="Toggle Timeline"
+              id={`mobile-timeline-${vehicle.truckNumber}`}
             >
               <Calendar size={15} />
               <span className="leading-none">Timeline</span>
+            </button>
+
+            {/* Assignment History Button */}
+            <button
+              onClick={onOpenAssignmentHistory}
+              className="h-[48px] flex flex-col items-center justify-center gap-1 bg-white border border-slate-200 text-slate-700 rounded-xl hover:bg-slate-50 transition shadow-sm text-[10px] font-bold px-1"
+              title="Assignment History"
+              id={`mobile-assignment-history-${vehicle.truckNumber}`}
+            >
+              <Clock size={15} className="text-amber-500" />
+              <span className="leading-none">History</span>
             </button>
 
             {/* Tyre Map Button */}
@@ -785,6 +808,7 @@ const VehicleCard = React.memo(function VehicleCard({
               onClick={onOpenTyres}
               className="h-[48px] flex flex-col items-center justify-center gap-1 bg-slate-900 text-white hover:bg-slate-800 rounded-xl shadow-sm transition text-[10px] font-bold px-1"
               title={`Tyre Map for ${vehicle.truckNumber}`}
+              id={`mobile-tyres-${vehicle.truckNumber}`}
             >
               <span className="text-sm leading-none">🛞</span>
               <span className="leading-none">Tyres</span>
@@ -792,51 +816,55 @@ const VehicleCard = React.memo(function VehicleCard({
           </div>
         </div>
 
-        {/* Desktop Screens (>= 768px) */}
-        <div className="hidden md:flex justify-between items-center w-full gap-4">
-          <div className="flex items-center gap-2">
-            <button
-              onClick={onEdit}
-              className="h-10 w-10 flex items-center justify-center bg-white text-slate-600 border border-slate-200 rounded-xl hover:text-slate-950 hover:bg-slate-50 transition shadow-sm"
-              title="Edit Fleet Profile"
-            >
-              <Edit size={16} />
-            </button>
-            <button
-              onClick={onDelete}
-              className="h-10 w-10 flex items-center justify-center bg-white text-red-500 border border-slate-200 rounded-xl hover:text-red-700 hover:bg-red-50 transition shadow-sm"
-              title="Delete truck"
-            >
-              <Trash2 size={16} />
-            </button>
-            <button
-              onClick={onToggleExpand}
-              className={`h-10 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider px-4 bg-white border border-slate-200 rounded-xl transition shadow-sm ${
-                isExpanded ? 'text-blue-600 border-blue-100 bg-blue-50/20' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'
-              }`}
-            >
-              <span>Timeline</span>
-              {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-            </button>
-          </div>
-
-          {/* Middle: NEXT SERVICE Display (Requirement 3) */}
-          <div className="flex flex-col text-right leading-tight">
-            <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
-              NEXT SERVICE
-            </span>
-            <span className={`text-xs font-extrabold ${serviceSummary.level === 'red' ? 'text-red-600' : 'text-slate-800'}`}>
-              {serviceSummary.displayMessage}
-            </span>
-          </div>
-
+  {/* Desktop Screens (>= 768px) */}
+        <div className="hidden md:flex items-center justify-start w-full gap-2 overflow-x-auto whitespace-nowrap scrollbar-none pb-0.5">
+          {/* Edit Button */}
           <button
-            onClick={onOpenTyres}
-            className="h-10 flex items-center gap-2 text-xs bg-slate-900 text-white hover:bg-slate-800 font-bold px-4 rounded-xl shadow-sm transition"
-            title={`Open Tyre Map Workbench for ${vehicle.truckNumber}`}
+            onClick={onEdit}
+            className="h-10 flex items-center gap-2 text-xs font-bold uppercase tracking-wider px-3.5 bg-white border border-slate-200 text-slate-600 rounded-xl hover:text-slate-950 hover:bg-slate-50 transition shadow-sm shrink-0"
+            title="Edit Fleet Profile"
+            id={`desktop-edit-${vehicle.truckNumber}`}
           >
-            <span className="text-sm">🛞</span>
-            <span>Tyre Map</span>
+            <Edit size={14} className="text-slate-500" />
+            <span>Edit</span>
+          </button>
+
+          {/* Trip History Button */}
+          <button
+            onClick={onOpenTripHistory}
+            className="h-10 flex items-center gap-2 text-xs font-bold uppercase tracking-wider px-3.5 bg-white border border-slate-200 text-slate-600 rounded-xl hover:text-slate-950 hover:bg-slate-50 transition shadow-sm shrink-0"
+            title="Trip History"
+            id={`desktop-trips-${vehicle.truckNumber}`}
+          >
+            <Activity size={14} className="text-blue-500" />
+            <span>Trip</span>
+          </button>
+
+          {/* Timeline Button */}
+          <button
+            onClick={onToggleExpand}
+            className={`h-10 flex items-center gap-2 text-xs font-bold uppercase tracking-wider px-3.5 border rounded-xl transition shadow-sm shrink-0 ${
+              isExpanded 
+                ? 'text-blue-600 border-blue-150 bg-blue-50/20' 
+                : 'border-slate-200 text-slate-600 hover:text-slate-950 hover:bg-slate-50'
+            }`}
+            title="Toggle Timeline"
+            id={`desktop-timeline-${vehicle.truckNumber}`}
+          >
+            <Calendar size={14} className={isExpanded ? 'text-blue-500' : 'text-slate-500'} />
+            <span>Timeline</span>
+            {isExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+          </button>
+
+          {/* Assignment History Button */}
+          <button
+            onClick={onOpenAssignmentHistory}
+            className="h-10 flex items-center gap-2 text-xs font-bold uppercase tracking-wider px-3.5 bg-white border border-slate-200 text-slate-600 rounded-xl hover:text-slate-950 hover:bg-slate-50 transition shadow-sm shrink-0"
+            title="Assignment History"
+            id={`desktop-assignment-history-${vehicle.truckNumber}`}
+          >
+            <Clock size={14} className="text-amber-500" />
+            <span>Assignment</span>
           </button>
         </div>
       </div>
@@ -859,6 +887,8 @@ interface FleetVehiclesViewProps {
   setServiceSchedules: React.Dispatch<React.SetStateAction<ServiceSchedule[]>>;
   setTab: (tab: string) => void;
   setSelectedTruckNumForTyres: (num: string) => void;
+  tripHistory: TripHistoryRecord[];
+  setTripHistory: React.Dispatch<React.SetStateAction<TripHistoryRecord[]>>;
 }
 
 export default function FleetVehiclesView({ 
@@ -868,7 +898,9 @@ export default function FleetVehiclesView({
   serviceSchedules,
   setServiceSchedules,
   setTab,
-  setSelectedTruckNumForTyres 
+  setSelectedTruckNumForTyres,
+  tripHistory,
+  setTripHistory
 }: FleetVehiclesViewProps) {
   
   // State for search and filter
@@ -876,12 +908,35 @@ export default function FleetVehiclesView({
   const [manufacturerFilter, setManufacturerFilter] = useState<string>('All');
   const [statusFilter, setStatusFilter] = useState<string>('All');
 
+  // State for Trip History Drawer / Modal
+  const [selectedTripVehicle, setSelectedTripVehicle] = useState<Vehicle | null>(null);
+  const [isTripHistoryOpen, setIsTripHistoryOpen] = useState(false);
+
+  // State for Assignment History Drawer / Modal
+  const [selectedHistoryVehicle, setSelectedHistoryVehicle] = useState<Vehicle | null>(null);
+  const [isAssignmentHistoryOpen, setIsAssignmentHistoryOpen] = useState(false);
+  const [assignmentReason, setAssignmentReason] = useState('');
+
   // Modal State for adding/editing a truck
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null);
 
   // Expanded card tracking for timelines
   const [expandedVehicleNum, setExpandedVehicleNum] = useState<string>('');
+
+  // Delete Workflow and Toast States
+  const [deleteWorkflowState, setDeleteWorkflowState] = useState<{ step: 0 | 1 | 2; truckNumber: string }>({ step: 0, truckNumber: '' });
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (toastMessage) {
+      const timer = setTimeout(() => {
+        setToastMessage(null);
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [toastMessage]);
 
   // Form Fields
   const [truckNumber, setTruckNumber] = useState('');
@@ -973,7 +1028,7 @@ export default function FleetVehiclesView({
   };
 
   // Save changes (Add new or Update existing)
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!truckNumber.trim()) return;
 
@@ -1018,46 +1073,106 @@ export default function FleetVehiclesView({
 
     if (editingVehicle) {
       // Update
-      setVehicles(prev => prev.map(v => {
-        if (v.truckNumber === editingVehicle.truckNumber) {
-          const configChanged = v.manufacturer !== targetManufacturer || v.tyresCount !== targetTyresCount || v.hasLiftAxle !== targetHasLiftAxle;
-          return {
-            ...v,
-            truckNumber: truckNumber.trim().toUpperCase(),
-            manufacturer: targetManufacturer,
-            tyresCount: targetTyresCount,
-            hasLiftAxle: targetHasLiftAxle,
-            vehicleTemplate,
-            wheelConfiguration: targetWheelConfig,
-            totalTyres: targetTyresCount,
-            // Added fields for Sprint 2.1
-            status: vehicleStatus,
-            vehicleStatus,
-            wheelCount: targetTyresCount,
-            vehicleConfiguration: targetVehicleConfig,
-            updatedAt: new Date().toISOString(),
-            createdAt: v.createdAt || new Date().toISOString(),
-            supervisorName,
-            foremanName: foremanName || '',
-            driverName,
-            mobileNumber,
-            currentLocation,
-            lastUpdated: new Date().toISOString(),
-            tyres: configChanged ? generateDefaultTyres(targetManufacturer, targetTyresCount, targetHasLiftAxle) : v.tyres,
-            insuranceExpiry,
-            fitnessExpiry,
-            permitExpiry,
-            eWayBillExpiry: eWayBillExpiry || null,
-            pucExpiry: pucExpiry || null,
-            currentTripFrom: currentTripFrom.trim(),
-            currentTripTo: currentTripTo.trim(),
-            tripStartDate,
-            tripStatus,
-            partyName: partyName.trim()
-          };
+      const configChanged = editingVehicle.manufacturer !== targetManufacturer || editingVehicle.tyresCount !== targetTyresCount || editingVehicle.hasLiftAxle !== targetHasLiftAxle;
+      
+      const updatedVehicle: Vehicle = {
+        ...editingVehicle,
+        truckNumber: truckNumber.trim().toUpperCase(),
+        manufacturer: targetManufacturer,
+        tyresCount: targetTyresCount,
+        hasLiftAxle: targetHasLiftAxle,
+        vehicleTemplate,
+        wheelConfiguration: targetWheelConfig,
+        totalTyres: targetTyresCount,
+        status: vehicleStatus,
+        vehicleStatus,
+        wheelCount: targetTyresCount,
+        vehicleConfiguration: targetVehicleConfig,
+        updatedAt: new Date().toISOString(),
+        createdAt: editingVehicle.createdAt || new Date().toISOString(),
+        supervisorName,
+        foremanName: foremanName || '',
+        driverName,
+        mobileNumber,
+        currentLocation,
+        lastUpdated: new Date().toISOString(),
+        tyres: configChanged ? generateDefaultTyres(targetManufacturer, targetTyresCount, targetHasLiftAxle) : editingVehicle.tyres,
+        insuranceExpiry,
+        fitnessExpiry,
+        permitExpiry,
+        eWayBillExpiry: eWayBillExpiry || null,
+        pucExpiry: pucExpiry || null,
+        currentTripFrom: currentTripFrom.trim(),
+        currentTripTo: currentTripTo.trim(),
+        tripStartDate,
+        tripStatus,
+        partyName: partyName.trim(),
+        currentTripId: (editingVehicle as any).currentTripId || ''
+      } as any;
+
+      // Automatically sync trip history
+      try {
+        const syncedTripId = await autoSyncTripFromVehicleChange(editingVehicle, updatedVehicle, supervisorName || 'Supervisor');
+        if (syncedTripId) {
+          updatedVehicle.currentTripId = syncedTripId;
         }
-        return v;
-      }));
+      } catch (err) {
+        console.error("Failed to sync trip history on edit:", err);
+      }
+
+      setVehicles(prev => prev.map(v => v.truckNumber === editingVehicle.truckNumber ? updatedVehicle : v));
+
+      // Record Assignment History if changed
+      const changes: { type: 'Driver' | 'Supervisor' | 'Foreman', oldVal: string, newVal: string }[] = [];
+      if (editingVehicle.driverName !== driverName) {
+        changes.push({ type: 'Driver', oldVal: editingVehicle.driverName || 'N/A', newVal: driverName || 'N/A' });
+      }
+      if (editingVehicle.supervisorName !== supervisorName) {
+        changes.push({ type: 'Supervisor', oldVal: editingVehicle.supervisorName || 'N/A', newVal: supervisorName || 'N/A' });
+      }
+      if ((editingVehicle.foremanName || '') !== foremanName) {
+        changes.push({ type: 'Foreman', oldVal: editingVehicle.foremanName || 'N/A', newVal: foremanName || 'N/A' });
+      }
+
+      if (changes.length > 0) {
+        const now = new Date();
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const day = String(now.getDate()).padStart(2, '0');
+        const month = months[now.getMonth()];
+        const year = now.getFullYear();
+        const dateFormatted = `${day}-${month}-${year}`;
+
+        let hours = now.getHours();
+        const minutes = String(now.getMinutes()).padStart(2, '0');
+        const ampm = hours >= 12 ? 'PM' : 'AM';
+        hours = hours % 12;
+        hours = hours ? hours : 12;
+        const timeFormatted = `${hours}:${minutes} ${ampm}`;
+
+        for (const change of changes) {
+          const historyId = `AH${Date.now()}${Math.floor(Math.random() * 1000)}`;
+          const newHistory: AssignmentHistoryRecord = {
+            historyId,
+            vehicleId: editingVehicle.truckNumber,
+            assignmentType: change.type,
+            oldValue: change.oldVal,
+            newValue: change.newVal,
+            changedBy: 'Dispatcher',
+            date: dateFormatted,
+            time: timeFormatted,
+            reason: assignmentReason.trim() || undefined,
+            createdAt: now.toISOString()
+          };
+
+          try {
+            await writeDocument('assignmentHistory', historyId, newHistory);
+          } catch (e) {
+            console.error("Failed to write assignment history to Firestore:", e);
+          }
+        }
+        // clear local state
+        setAssignmentReason('');
+      }
     } else {
       // Add new
       if (vehicles.some(v => v.truckNumber.toUpperCase() === truckNumber.trim().toUpperCase())) {
@@ -1073,7 +1188,6 @@ export default function FleetVehiclesView({
         vehicleTemplate,
         wheelConfiguration: targetWheelConfig,
         totalTyres: targetTyresCount,
-        // Added fields for Sprint 2.1 & 2.2
         status: vehicleStatus,
         vehicleStatus,
         wheelCount: targetTyresCount,
@@ -1096,10 +1210,30 @@ export default function FleetVehiclesView({
         currentTripTo: currentTripTo.trim(),
         tripStartDate,
         tripStatus,
-        partyName: partyName.trim()
-      };
+        partyName: partyName.trim(),
+        currentTripId: ''
+      } as any;
+
+      // Automatically sync trip history for new vehicle if a trip is assigned
+      try {
+        const syncedTripId = await autoSyncTripFromVehicleChange(null, newVehicle, supervisorName || 'Supervisor');
+        if (syncedTripId) {
+          newVehicle.currentTripId = syncedTripId;
+        }
+      } catch (err) {
+        console.error("Failed to sync trip history on creation:", err);
+      }
 
       setVehicles(prev => [newVehicle, ...prev]);
+    }
+
+    // Refresh trips state
+    try {
+      const refreshedTrips = await fetchAllTrips();
+      refreshedTrips.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      setTripHistory(refreshedTrips);
+    } catch (err) {
+      console.error("Error refreshing trips after vehicle save:", err);
     }
 
     setIsModalOpen(false);
@@ -1107,10 +1241,7 @@ export default function FleetVehiclesView({
 
   // Delete a truck
   const handleDelete = (truckNum: string) => {
-    const confirmed = window.confirm(`Are you sure you want to remove truck ${truckNum} from the SL Maintenance Hub?`);
-    if (confirmed) {
-      setVehicles(prev => prev.filter(v => v.truckNumber !== truckNum));
-    }
+    setDeleteWorkflowState({ step: 1, truckNumber: truckNum });
   };
 
   // Helper: Calculate alert status levels for vehicle service (Point 4)
@@ -1358,6 +1489,14 @@ export default function FleetVehiclesView({
                   setSelectedTruckNumForTyres(vehicle.truckNumber);
                   setTab('tyres');
                 }}
+                onOpenTripHistory={() => {
+                  setSelectedTripVehicle(vehicle);
+                  setIsTripHistoryOpen(true);
+                }}
+                onOpenAssignmentHistory={() => {
+                  setSelectedHistoryVehicle(vehicle);
+                  setIsAssignmentHistoryOpen(true);
+                }}
                 serviceLogs={serviceLogs}
                 serviceSchedules={serviceSchedules}
                 calculateServiceStatus={calculateVehicleServiceStatus}
@@ -1512,6 +1651,26 @@ export default function FleetVehiclesView({
                   </datalist>
                 </div>
               </div>
+
+              {/* Conditional Assignment Change Reason Field */}
+              {editingVehicle && (
+                editingVehicle.driverName !== driverName ||
+                editingVehicle.supervisorName !== supervisorName ||
+                (editingVehicle.foremanName || '') !== foremanName
+              ) && (
+                <div className="bg-amber-50/50 p-3 rounded-xl border border-amber-200/50 space-y-1.5 animate-fade-in" id="assignment-change-reason-field">
+                  <label className="block text-[10px] font-bold text-amber-800 uppercase tracking-widest leading-none">
+                    Reason for Assignment Change (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Driver leave rotation, supervisor assignment"
+                    value={assignmentReason}
+                    onChange={(e) => setAssignmentReason(e.target.value)}
+                    className="w-full bg-white border border-amber-200 px-3 py-2 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                  />
+                </div>
+              )}
 
               {/* Current Location / Station */}
               <div>
@@ -1671,23 +1830,180 @@ export default function FleetVehiclesView({
               </div>
 
               {/* Actions */}
-              <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 bg-slate-100 text-slate-700 rounded-xl text-xs font-bold hover:bg-slate-200"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-5 py-2 bg-blue-600 text-white font-bold rounded text-xs shadow hover:bg-blue-500 active:scale-95 transition"
-                >
-                  {editingVehicle ? "Save Changes" : "Register and Generate Tyres"}
-                </button>
+              <div className="flex justify-between items-center pt-4 border-t border-slate-100">
+                <div>
+                  {editingVehicle ? (
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(editingVehicle.truckNumber)}
+                      className="p-2 text-red-600 hover:bg-red-50 rounded-full transition cursor-pointer flex items-center justify-center"
+                      title="Delete Vehicle"
+                      id={`danger-zone-delete-${editingVehicle.truckNumber}`}
+                    >
+                      <Trash2 size={22} className="text-red-600" />
+                    </button>
+                  ) : (
+                    <div />
+                  )}
+                </div>
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setIsModalOpen(false)}
+                    className="px-4 py-2 bg-slate-100 text-slate-700 rounded-xl text-xs font-bold hover:bg-slate-200"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-5 py-2 bg-blue-600 text-white font-bold rounded text-xs shadow hover:bg-blue-500 active:scale-95 transition"
+                  >
+                    {editingVehicle ? "Save Changes" : "Register and Generate Tyres"}
+                  </button>
+                </div>
               </div>
             </form>
           </div>
+        </div>
+      )}
+
+      {/* Trip History View Drawer / Modal */}
+      {selectedTripVehicle && (
+        <TripHistoryView
+          vehicle={selectedTripVehicle}
+          isOpen={isTripHistoryOpen}
+          onClose={() => {
+            setIsTripHistoryOpen(false);
+            setSelectedTripVehicle(null);
+          }}
+          tripHistory={tripHistory}
+          setTripHistory={setTripHistory}
+        />
+      )}
+
+      {/* Assignment History View Drawer / Modal */}
+      {selectedHistoryVehicle && (
+        <AssignmentHistoryModal
+          vehicle={selectedHistoryVehicle}
+          isOpen={isAssignmentHistoryOpen}
+          onClose={() => {
+            setIsAssignmentHistoryOpen(false);
+            setSelectedHistoryVehicle(null);
+          }}
+        />
+      )}
+
+      {/* Step 1 Delete Confirmation Dialog */}
+      {deleteWorkflowState.step === 1 && (
+        <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
+          <div className="bg-white border border-slate-200 p-6 rounded-2xl shadow-2xl w-full max-w-md" id="delete-confirm-step-1">
+            <div className="flex items-center gap-3 text-red-600 mb-4">
+              <div className="p-2 bg-red-50 rounded-xl">
+                <AlertTriangle size={24} />
+              </div>
+              <h3 className="font-bold text-lg text-slate-900">Delete Vehicle?</h3>
+            </div>
+            
+            <p className="text-sm text-slate-600 mb-6 font-medium">
+              This action cannot be undone. All data associated with the vehicle <span className="font-mono font-bold text-slate-900 bg-slate-100 px-1.5 py-0.5 rounded">{deleteWorkflowState.truckNumber}</span> will be permanently lost.
+            </p>
+
+            <div className="flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setDeleteWorkflowState({ step: 0, truckNumber: '' })}
+                className="px-4 py-2.5 bg-slate-100 text-slate-700 rounded-xl text-xs font-bold hover:bg-slate-200 transition cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setDeleteWorkflowState(prev => ({ ...prev, step: 2 }));
+                  setDeleteConfirmText('');
+                }}
+                className="px-5 py-2.5 bg-red-600 text-white font-bold rounded-xl text-xs shadow hover:bg-red-500 transition cursor-pointer"
+                id="delete-confirm-continue"
+              >
+                Continue
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Step 2 Final Delete Confirmation Dialog */}
+      {deleteWorkflowState.step === 2 && (
+        <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
+          <div className="bg-white border border-slate-200 p-6 rounded-2xl shadow-2xl w-full max-w-md" id="delete-confirm-step-2">
+            <div className="flex items-center gap-3 text-red-600 mb-4">
+              <div className="p-2 bg-red-50 rounded-xl">
+                <Trash2 size={24} />
+              </div>
+              <h3 className="font-bold text-lg text-slate-900">Final Confirmation Required</h3>
+            </div>
+            
+            <p className="text-sm text-slate-600 mb-4 font-medium">
+              Vehicle <span className="font-mono font-bold text-slate-900 bg-slate-100 px-1.5 py-0.5 rounded">{deleteWorkflowState.truckNumber}</span> will be permanently deleted.
+            </p>
+
+            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
+              Type <span className="font-mono font-extrabold text-red-600 bg-red-50 px-1.5 py-0.5 rounded">DELETE</span> to continue.
+            </p>
+
+            <input
+              type="text"
+              placeholder="Type DELETE"
+              value={deleteConfirmText}
+              onChange={(e) => setDeleteConfirmText(e.target.value)}
+              className="w-full bg-slate-50 border border-slate-200 px-3 py-2.5 rounded-xl text-sm font-bold uppercase tracking-wider mb-6 focus:outline-none focus:ring-2 focus:ring-red-500"
+              id="delete-confirm-input"
+            />
+
+            <div className="flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setDeleteWorkflowState({ step: 0, truckNumber: '' })}
+                className="px-4 py-2.5 bg-slate-100 text-slate-700 rounded-xl text-xs font-bold hover:bg-slate-200 transition cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={deleteConfirmText !== 'DELETE'}
+                onClick={async () => {
+                  const targetTruck = deleteWorkflowState.truckNumber;
+                  // Execute deletion
+                  setVehicles(prev => prev.filter(v => v.truckNumber !== targetTruck));
+                  
+                  // Close editing modal if open
+                  setIsModalOpen(false);
+                  setEditingVehicle(null);
+                  
+                  // Reset delete workflow state
+                  setDeleteWorkflowState({ step: 0, truckNumber: '' });
+                  setDeleteConfirmText('');
+                  
+                  // Show success toast
+                  setToastMessage(`Vehicle ${targetTruck} successfully deleted.`);
+                }}
+                className="px-5 py-2.5 bg-red-600 text-white font-bold rounded-xl text-xs shadow hover:bg-red-500 disabled:opacity-50 disabled:cursor-not-allowed transition cursor-pointer"
+                id="delete-confirm-permanently-button"
+              >
+                Delete Permanently
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Elegant floating success toast notification */}
+      {toastMessage && (
+        <div className="fixed bottom-5 right-5 bg-slate-900 text-white px-4 py-3.5 rounded-xl shadow-2xl border border-slate-800 flex items-center gap-3 z-[70] animate-fade-in-up" id="delete-success-toast">
+          <div className="p-1 bg-emerald-500 rounded-full text-white flex items-center justify-center">
+            <Check size={14} />
+          </div>
+          <span className="text-xs font-extrabold tracking-wide uppercase">{toastMessage}</span>
         </div>
       )}
     </div>

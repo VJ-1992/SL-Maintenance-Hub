@@ -1,4 +1,4 @@
-import { Vehicle, VehicleManufacturer, Tyre, TyreStatus, ServiceLog, ServiceType, TyreMaster, TyreMasterStatus, TyreHistory, TyreMovement, TyreInspection, TyreExpense, RetreadRecord, ServiceSchedule, CentralNotification } from '../types';
+import { Vehicle, VehicleManufacturer, Tyre, TyreStatus, ServiceLog, ServiceType, TyreMaster, TyreMasterStatus, TyreHistory, TyreMovement, TyreInspection, TyreExpense, RetreadRecord, ServiceSchedule, CentralNotification, TripHistoryRecord } from '../types';
 
 // Helper to generate a default tyre list for a given vehicle template
 export function generateDefaultTyres(
@@ -893,5 +893,199 @@ export const INITIAL_NOTIFICATIONS: CentralNotification[] = [
     date: "2026-06-15",
     isRead: true,
     severity: "low"
+  }
+];
+
+export const INITIAL_TRIPS: TripHistoryRecord[] = [
+  {
+    tripId: "TRIP-260624-952A",
+    vehicleNumber: "RJ14GR0952",
+    driver: "Rakesh Yadav",
+    supervisor: "Mustak",
+    party: "Balaji Logistics",
+    fromLocation: "Panipat",
+    toLocation: "Chennai",
+    startDate: "2026-06-24T08:00:00Z",
+    status: "Running",
+    currentOdometer: 129400,
+    remarks: "Carrying textile load. Expected delivery in 3 days.",
+    timeline: [
+      {
+        eventName: "Trip Planned",
+        date: "2026-06-24",
+        time: "08:00",
+        user: "Mustak",
+        remarks: "Scheduled route from Panipat to Chennai via NH48."
+      },
+      {
+        eventName: "Loading Completed",
+        date: "2026-06-24",
+        time: "11:30",
+        user: "Ramesh",
+        remarks: "Texile consignment of 15 Tons loaded."
+      },
+      {
+        eventName: "Trip Dispatched",
+        date: "2026-06-24",
+        time: "12:15",
+        user: "Mustak",
+        remarks: "In Transit. Current Location: Gurgaon Toll Plaza."
+      },
+      {
+        eventName: "Odometer Logged",
+        date: "2026-06-25",
+        time: "09:00",
+        user: "Rakesh Yadav",
+        remarks: "Odometer reading at 129,400 KM. Smooth journey."
+      }
+    ],
+    createdAt: "2026-06-24T08:00:00Z",
+    updatedAt: "2026-06-25T09:00:00Z"
+  },
+  {
+    tripId: "TRIP-250625-981B",
+    vehicleNumber: "RJ14GP0981",
+    driver: "Karan Johar",
+    supervisor: "Sachin",
+    party: "Raj Express",
+    fromLocation: "Jaipur",
+    toLocation: "Mumbai",
+    startDate: "2026-06-25T10:00:00Z",
+    status: "Scheduled",
+    currentOdometer: 89620,
+    remarks: "Upcoming steel coil dispatch.",
+    timeline: [
+      {
+        eventName: "Trip Planned & Registered",
+        date: "2026-06-25",
+        time: "10:00",
+        user: "Sachin",
+        remarks: "Scheduled for steel coil transportation."
+      }
+    ],
+    createdAt: "2026-06-25T10:00:00Z",
+    updatedAt: "2026-06-25T10:00:00Z"
+  },
+  {
+    tripId: "TRIP-220601-952X",
+    vehicleNumber: "RJ14GR0952",
+    driver: "Rakesh Yadav",
+    supervisor: "Mustak",
+    party: "JSW Steel",
+    fromLocation: "Haldia",
+    toLocation: "Jaipur",
+    startDate: "2026-06-01T06:00:00Z",
+    endDate: "2026-06-05T18:00:00Z",
+    status: "Completed",
+    distance: 1450,
+    duration: "4 Days 12 Hours",
+    currentOdometer: 127950,
+    endingOdometer: 129400,
+    remarks: "Delivered steel billets. Unloading took 4 hours.",
+    timeline: [
+      {
+        eventName: "Trip Registered",
+        date: "2026-06-01",
+        time: "06:00",
+        user: "Mustak",
+        remarks: "Assigned to Rakesh Yadav."
+      },
+      {
+        eventName: "Dispatched",
+        date: "2026-06-01",
+        time: "08:30",
+        user: "Ramesh",
+        remarks: "Odometer reading at 127,950 KM."
+      },
+      {
+        eventName: "Reached Destination",
+        date: "2026-06-05",
+        time: "14:00",
+        user: "Mustak",
+        remarks: "Arrived at Jaipur Depot."
+      },
+      {
+        eventName: "Trip Completed",
+        date: "2026-06-05",
+        time: "18:00",
+        user: "Mustak",
+        remarks: "Unloading completed. Ending Odometer: 129,400 KM."
+      }
+    ],
+    createdAt: "2026-06-01T06:00:00Z",
+    updatedAt: "2026-06-05T18:00:00Z"
+  },
+  {
+    tripId: "TRIP-150610-981Y",
+    vehicleNumber: "RJ14GP0981",
+    driver: "Karan Johar",
+    supervisor: "Sachin",
+    party: "Tata Motors",
+    fromLocation: "Pune",
+    toLocation: "Delhi",
+    startDate: "2026-06-10T07:00:00Z",
+    endDate: "2026-06-14T15:30:00Z",
+    status: "Completed",
+    distance: 1320,
+    duration: "4 Days 8 Hours",
+    currentOdometer: 88300,
+    endingOdometer: 89620,
+    remarks: "Spare parts consignment. Smooth drive.",
+    timeline: [
+      {
+        eventName: "Trip Registered",
+        date: "2026-06-10",
+        time: "07:00",
+        user: "Sachin",
+        remarks: "Planned Pune -> Delhi route."
+      },
+      {
+        eventName: "Dispatched",
+        date: "2026-06-10",
+        time: "09:00",
+        user: "Suresh",
+        remarks: "Odometer starting at 88,300 KM."
+      },
+      {
+        eventName: "Trip Completed",
+        date: "2026-06-14",
+        time: "15:30",
+        user: "Sachin",
+        remarks: "Delivered to Maruti-Suzuki stockyard. Final Odometer: 89,620 KM."
+      }
+    ],
+    createdAt: "2026-06-10T07:00:00Z",
+    updatedAt: "2026-06-14T15:30:00Z"
+  },
+  {
+    tripId: "TRIP-120618-952C",
+    vehicleNumber: "RJ14GR0952",
+    driver: "Amit Sharma",
+    supervisor: "Mustak",
+    party: "Ultratech Cement",
+    fromLocation: "Jaipur",
+    toLocation: "Bikaner",
+    startDate: "2026-06-18T09:00:00Z",
+    status: "Cancelled",
+    currentOdometer: 127950,
+    remarks: "Order cancelled by party due to stock delay.",
+    timeline: [
+      {
+        eventName: "Trip Registered",
+        date: "2026-06-18",
+        time: "09:00",
+        user: "Mustak",
+        remarks: "Scheduled cement load."
+      },
+      {
+        eventName: "Trip Cancelled",
+        date: "2026-06-18",
+        time: "14:20",
+        user: "Mustak",
+        remarks: "Cancelled. Consignment revoked by Ultratech."
+      }
+    ],
+    createdAt: "2026-06-18T09:00:00Z",
+    updatedAt: "2026-06-18T14:20:00Z"
   }
 ];

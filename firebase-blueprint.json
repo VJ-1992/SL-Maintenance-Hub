@@ -651,6 +651,145 @@
         }
       },
       "required": ["vehicleNo", "type", "title", "message", "priority", "status", "createdAt", "read"]
+    },
+    "TripHistoryRecord": {
+      "title": "TripHistoryRecord",
+      "description": "Permanent log of all vehicle trips.",
+      "type": "object",
+      "properties": {
+        "tripId": {
+          "type": "string",
+          "description": "Unique trip identifier."
+        },
+        "vehicleId": {
+          "type": "string",
+          "description": "Optional associated vehicle ID."
+        },
+        "vehicleNumber": {
+          "type": "string",
+          "description": "Associated truck number."
+        },
+        "driver": {
+          "type": "string",
+          "description": "Driver name."
+        },
+        "supervisor": {
+          "type": "string",
+          "description": "Supervisor name."
+        },
+        "party": {
+          "type": "string",
+          "description": "Party name."
+        },
+        "fromLocation": {
+          "type": "string",
+          "description": "Source location of the trip."
+        },
+        "toLocation": {
+          "type": "string",
+          "description": "Destination location of the trip."
+        },
+        "startDate": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Start timestamp of the trip."
+        },
+        "endDate": {
+          "type": "string",
+          "format": "date-time",
+          "description": "End timestamp of the trip."
+        },
+        "status": {
+          "type": "string",
+          "enum": ["Scheduled", "Running", "Completed", "Cancelled"],
+          "description": "Current trip status."
+        },
+        "timeline": {
+          "type": "array",
+          "description": "Timeline of trip updates."
+        },
+        "distance": {
+          "type": "number",
+          "description": "Total distance traveled in KM."
+        },
+        "duration": {
+          "type": "string",
+          "description": "Calculated trip duration."
+        },
+        "currentOdometer": {
+          "type": "number",
+          "description": "Odometer reading at trip start."
+        },
+        "endingOdometer": {
+          "type": "number",
+          "description": "Odometer reading at trip end."
+        },
+        "remarks": {
+          "type": "string",
+          "description": "Optional trip remarks."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Trip creation timestamp."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Trip last updated timestamp."
+        }
+      },
+      "required": ["tripId", "vehicleNumber", "driver", "fromLocation", "toLocation", "status", "createdAt", "updatedAt"]
+    },
+    "AssignmentHistoryRecord": {
+      "title": "AssignmentHistoryRecord",
+      "description": "Historical audit log of vehicle driver, supervisor, or foreman changes.",
+      "type": "object",
+      "properties": {
+        "historyId": {
+          "type": "string",
+          "description": "Unique history record identifier."
+        },
+        "vehicleId": {
+          "type": "string",
+          "description": "ID of the vehicle (truck number) associated."
+        },
+        "assignmentType": {
+          "type": "string",
+          "enum": ["Driver", "Supervisor", "Foreman"],
+          "description": "The type of assignment field changed."
+        },
+        "oldValue": {
+          "type": "string",
+          "description": "Previous value of the assignment field."
+        },
+        "newValue": {
+          "type": "string",
+          "description": "New assigned value."
+        },
+        "changedBy": {
+          "type": "string",
+          "description": "User who performed the change."
+        },
+        "date": {
+          "type": "string",
+          "description": "Human-friendly date of change."
+        },
+        "time": {
+          "type": "string",
+          "description": "Human-friendly time of change."
+        },
+        "reason": {
+          "type": "string",
+          "description": "Optional reason text for the change."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Creation timestamp."
+        }
+      },
+      "required": ["historyId", "vehicleId", "assignmentType", "oldValue", "newValue", "changedBy", "date", "time", "createdAt"]
     }
   },
   "firestore": {
@@ -693,6 +832,14 @@
     "notifications": {
       "schema": "CentralNotification",
       "description": "User actionable system flags"
+    },
+    "tripHistory": {
+      "schema": "TripHistoryRecord",
+      "description": "Permanent log database for all fleet vehicle trips"
+    },
+    "assignmentHistory": {
+      "schema": "AssignmentHistoryRecord",
+      "description": "Audit trail log of all driver, supervisor, or foreman assignment changes"
     }
   }
 }
