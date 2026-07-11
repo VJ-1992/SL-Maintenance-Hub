@@ -222,6 +222,7 @@ export interface Vehicle {
   tripStatus?: 'Planned' | 'In Transit' | 'Reached Destination' | 'Completed';
   partyName?: string;
   currentTripId?: string;
+  firm?: 'System' | 'Stepup';
   
   // Phase 2 updated template mapping fields
   vehicleTemplate?: string;

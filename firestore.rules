@@ -40,6 +40,7 @@ service cloud.firestore {
         && data.driverName is string && data.driverName.size() <= 100
         && data.currentLocation is string && data.currentLocation.size() <= 200
         && data.lastUpdated is string
+        && (!data.keys().hasAny(['firm']) || (data.firm is string && (data.firm == 'System' || data.firm == 'Stepup')))
         && (!data.keys().hasAny(['vehicleTemplate']) || data.vehicleTemplate is string)
         && (!data.keys().hasAny(['foremanName']) || (data.foremanName is string && data.foremanName.size() <= 100))
         && (!data.keys().hasAny(['wheelConfiguration']) || data.wheelConfiguration is string)

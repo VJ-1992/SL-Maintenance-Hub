@@ -94,6 +94,11 @@
           "type": "string",
           "description": "Client party name for the trip."
         },
+        "firm": {
+          "type": "string",
+          "enum": ["System", "Stepup"],
+          "description": "Mandatory firm selection associated with the vehicle."
+        },
         "vehicleTemplate": {
           "type": "string",
           "description": "Selected vehicle model template name."
