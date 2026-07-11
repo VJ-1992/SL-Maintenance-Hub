@@ -59,12 +59,12 @@ export default function Sidebar({
 
       {/* Sidebar Container */}
       <aside
-        className={`fixed md:sticky top-0 left-0 h-screen w-64 bg-white border-r border-slate-200/60 text-slate-800 flex flex-col z-40 transition-transform duration-300 transform ${
+        className={`fixed md:sticky top-0 left-0 h-screen w-64 md:w-56 bg-white border-r border-slate-200/60 text-slate-800 flex flex-col z-40 transition-transform duration-300 transform ${
           isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
         }`}
       >
         {/* Branding & Logo */}
-        <div className="p-6 border-b border-slate-100">
+        <div className="p-6 md:p-5 border-b border-slate-100">
           <div className="flex items-center space-x-3">
             <div className="bg-blue-600 p-2 rounded-xl text-white font-bold flex items-center justify-center shadow-sm">
               <Truck size={20} className="stroke-[2.5]" />
@@ -87,7 +87,7 @@ export default function Sidebar({
         </div>
 
         {/* Sidebar Navigation */}
-        <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+        <nav className="flex-1 p-4 md:p-3.5 space-y-1 overflow-y-auto">
           {menuItems.map((item) => {
             const Icon = item.icon;
             const isActive = currentTab === item.id;
@@ -98,7 +98,7 @@ export default function Sidebar({
                   setTab(item.id);
                   setIsOpen(false);
                 }}
-                className={`w-full flex items-center space-x-3 px-3.5 py-2 rounded-xl transition duration-150 group font-semibold text-xs uppercase tracking-wider ${
+                className={`w-full flex items-center space-x-3 md:space-x-2.5 px-3.5 md:px-3 py-2 rounded-xl transition duration-150 group font-semibold text-xs uppercase tracking-wider ${
                   isActive
                     ? 'bg-blue-50/70 text-blue-600 border border-blue-100/50'
                     : 'text-slate-500 hover:bg-slate-50 hover:text-slate-950 border border-transparent'

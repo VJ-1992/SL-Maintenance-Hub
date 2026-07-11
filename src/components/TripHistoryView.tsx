@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Vehicle, TripHistoryRecord, TripTimelineEvent, DeliveryPoint } from '../types';
 import { 
   X, Search, ArrowUpDown, Download, Printer, Activity, Clock, MapPin, Plus, 
@@ -40,8 +41,21 @@ export default function TripHistoryView({
   const [chipFilter, setChipFilter] = useState<'All' | 'Scheduled' | 'Running' | 'Completed' | 'Cancelled' | 'Delayed' | "Today's Trips" | 'This Week' | 'This Month'>('All');
   const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
 
+  const [searchParams, setSearchParams] = useSearchParams();
+
   // Active selected trip state
-  const [selectedTripId, setSelectedTripId] = useState<string | null>(null);
+  const selectedTripId = searchParams.get('tripId');
+  const setSelectedTripId = (tripId: string | null) => {
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      if (tripId) {
+        next.set('tripId', tripId);
+      } else {
+        next.delete('tripId');
+      }
+      return next;
+    }, { replace: true });
+  };
 
   // Floating Modal states
   const [isAddEventOpen, setIsAddEventOpen] = useState(false);

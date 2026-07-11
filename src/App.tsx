@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
 import DashboardView from './components/DashboardView';
 import HomeDashboardView from './components/HomeDashboardView';
@@ -169,44 +170,27 @@ function sanitizeServiceLog(log: any): ServiceLog {
 }
 
 export default function App() {
-  const [tab, setTab] = useState<string>(() => {
-    const saved = localStorage.getItem('sl_maintenance_active_tab');
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Parse path to tab
+  const tab = useMemo(() => {
+    const path = location.pathname.substring(1) || 'home';
     const validTabs = ['home', 'dashboard', 'fleet', 'service', 'tyres', 'notifications', 'reports', 'parties', 'tracking', 'settings'];
-    if (saved && validTabs.includes(saved)) {
-      return saved;
-    }
-    return 'home';
-  });
+    return validTabs.includes(path) ? path : 'home';
+  }, [location.pathname]);
+
+  const setTab = useCallback((newTab: string) => {
+    navigate({
+      pathname: `/${newTab}`,
+      search: location.search
+    });
+  }, [navigate, location.search]);
+
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(false);
   const [scrolled, setScrolled] = useState<boolean>(false);
-  const [headerTitle, setHeaderTitle] = useState<{ title: string; subtitle?: string }>(() => {
-    const saved = localStorage.getItem('sl_maintenance_active_tab');
-    const initialTab = (saved && ['home', 'dashboard', 'fleet', 'service', 'tyres', 'notifications', 'reports', 'parties', 'tracking', 'settings'].includes(saved)) ? saved : 'home';
-    switch (initialTab) {
-      case 'home':
-        return { title: 'Home Dashboard', subtitle: 'Select Fleet Management Module' };
-      case 'dashboard':
-        return { title: 'Dashboard', subtitle: 'Fleet Operations Overview' };
-      case 'fleet':
-        return { title: 'Fleet Vehicles', subtitle: 'Manage Registered Trucks' };
-      case 'service':
-        return { title: 'Service Logs', subtitle: 'Maintenance History' };
-      case 'tyres':
-        return { title: 'Tyre Management', subtitle: 'Tyre Lifecycle Monitoring' };
-      case 'notifications':
-        return { title: 'Notification Center', subtitle: 'Recent alerts & events' };
-      case 'reports':
-        return { title: 'Reports', subtitle: 'Analytics & Expenses' };
-      case 'parties':
-        return { title: 'Party Directory', subtitle: 'Transporters & Logistics Partners' };
-      case 'tracking':
-        return { title: 'Live Tracking', subtitle: 'Real-time GPS Trip Monitoring' };
-      case 'settings':
-        return { title: 'Settings', subtitle: 'Application Configuration' };
-      default:
-        return { title: 'Home Dashboard', subtitle: 'Select Fleet Management Module' };
-    }
-  });
+  const [headerTitle, setHeaderTitle] = useState<{ title: string; subtitle?: string }>({ title: 'Home Dashboard', subtitle: 'Select Fleet Management Module' });
 
   const [isSeeding, setIsSeeding] = useState<boolean>(false);
 
@@ -311,7 +295,18 @@ export default function App() {
   };
 
   // Cross-view state synchronization: which vehicle is selected when jumping to the Tyre Management tab!
-  const [selectedTruckNumForTyres, setSelectedTruckNumForTyres] = useState<string>('');
+  const selectedTruckNumForTyres = searchParams.get('vehicle') || '';
+  const setSelectedTruckNumForTyres = useCallback((num: string) => {
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      if (num) {
+        next.set('vehicle', num);
+      } else {
+        next.delete('vehicle');
+      }
+      return next;
+    }, { replace: true });
+  }, [setSearchParams]);
 
   const handleSubTabChange = useCallback((subTab: string) => {
     if (subTab === 'master') {
@@ -1652,7 +1647,7 @@ export default function App() {
             height: 'calc(64px + env(safe-area-inset-top, 0px))',
             paddingTop: 'env(safe-area-inset-top, 0px)',
           }}
-          className={`w-full flex-shrink-0 bg-white border-b border-slate-100 px-4 md:px-8 sticky top-0 z-30 flex items-center transition-all duration-200 ${
+          className={`w-full flex-shrink-0 bg-white border-b border-slate-100 px-4 md:px-6 sticky top-0 z-30 flex items-center transition-all duration-200 ${
             scrolled ? 'shadow-[0_2px_12px_rgba(15,23,42,0.04)] border-b-slate-200/50' : ''
           }`}
         >
@@ -1826,7 +1821,7 @@ export default function App() {
           className="flex-1 overflow-y-auto flex flex-col min-h-0 pb-20 md:pb-0"
         >
           {/* Dynamic page container with spacious layout */}
-          <main className="flex-1 p-4 sm:p-6 md:p-8 max-w-7xl w-full mx-auto space-y-6">
+          <main className="flex-1 p-4 sm:p-5 md:p-6 max-w-[96rem] w-full mx-auto space-y-6">
             {renderTabContent()}
           </main>
 

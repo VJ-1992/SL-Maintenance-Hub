@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Vehicle, Tyre, TyreStatus, ServiceLog, ServiceType, VehicleManufacturer, TyreMaster, TyreMasterStatus, TyreHistory, TyreMovement, TyreInspection, TyreExpense, RetreadRecord } from '../types';
 import { 
   Disc, 
@@ -72,8 +73,17 @@ export default function TyreManagementView({
   onSubTabChange
 }: TyreManagementViewProps) {
   
+  const [searchParams, setSearchParams] = useSearchParams();
+
   // Tabs management
-  const [activeSubTab, setActiveSubTab] = useState<'chassis' | 'analytics' | 'master' | 'history' | 'inspection' | 'retread'>('chassis');
+  const activeSubTab = (searchParams.get('sub') as 'chassis' | 'analytics' | 'master' | 'history' | 'inspection' | 'retread') || 'chassis';
+  const setActiveSubTab = (sub: 'chassis' | 'analytics' | 'master' | 'history' | 'inspection' | 'retread') => {
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      next.set('sub', sub);
+      return next;
+    }, { replace: true });
+  };
 
   useEffect(() => {
     if (onSubTabChange) {
@@ -83,9 +93,18 @@ export default function TyreManagementView({
   const [historyViewMode, setHistoryViewMode] = useState<'movements' | 'journey'>('movements');
 
   // Select the local vehicle context
-  const [selectedTruckNum, setSelectedTruckNum] = useState<string>(
-    initialSelectedTruckNum || vehicles[0]?.truckNumber || ''
-  );
+  const selectedTruckNum = searchParams.get('vehicle') || initialSelectedTruckNum || vehicles[0]?.truckNumber || '';
+  const setSelectedTruckNum = (num: string) => {
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      if (num) {
+        next.set('vehicle', num);
+      } else {
+        next.delete('vehicle');
+      }
+      return next;
+    }, { replace: true });
+  };
 
   // Synchronize on external state transfers
   useEffect(() => {

@@ -1,4 +1,5 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Vehicle, VehicleManufacturer, ServiceType, TyreStatus, ServiceLog, ServiceSchedule, TripHistoryRecord, AssignmentHistoryRecord } from '../types';
 import { generateDefaultTyres } from '../data/presets';
 import { autoSyncTripFromVehicleChange, fetchAllTrips } from '../services/trips';
@@ -251,7 +252,7 @@ function ComplianceDocCard({ name, expiryDate, lastUpdated }: ComplianceDocCardP
   return (
     <div 
       ref={containerRef}
-      className={`relative group/doc p-2.5 rounded-xl border ${cardBorder} flex flex-col justify-between text-center transition-all duration-200 hover:shadow-sm hover:border-slate-300 cursor-pointer select-none min-w-0`}
+      className={`relative group/doc p-2.5 lg:p-3 rounded-xl border ${cardBorder} flex flex-col justify-between text-center transition-all duration-200 hover:shadow-sm hover:border-slate-300 cursor-pointer select-none min-w-0`}
       onClick={(e) => {
         e.stopPropagation();
         setIsTapped(!isTapped);
@@ -260,16 +261,16 @@ function ComplianceDocCard({ name, expiryDate, lastUpdated }: ComplianceDocCardP
       onMouseLeave={() => setTooltipState(prev => ({ ...prev, show: false }))}
     >
       <div className="space-y-1">
-        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider truncate">
+        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider truncate whitespace-nowrap">
           {name}
         </p>
-        <p className={`text-xs font-extrabold font-mono leading-none truncate ${isNoDate ? 'text-slate-400 italic' : diffDays !== undefined && diffDays <= 0 ? 'text-red-600 font-extrabold' : 'text-slate-800'}`}>
+        <p className={`text-xs font-extrabold font-mono leading-none truncate whitespace-nowrap ${isNoDate ? 'text-slate-400 italic' : diffDays !== undefined && diffDays <= 0 ? 'text-red-600 font-extrabold' : 'text-slate-800'}`}>
           {formattedExpiry}
         </p>
       </div>
 
       <div className="mt-2 flex justify-center">
-        <span className={`text-[8px] font-extrabold tracking-wider px-1.5 py-0.5 rounded-full border ${badgeBg} w-full text-center truncate inline-block leading-normal`}>
+        <span className={`text-[8px] font-extrabold tracking-wider px-1.5 py-0.5 rounded-full border ${badgeBg} w-full text-center truncate inline-block leading-normal whitespace-nowrap`}>
           {statusLabel}
         </span>
       </div>
@@ -456,12 +457,12 @@ const VehicleCard = React.memo(function VehicleCard({
         </div>
 
         {/* Standardized Information Grid */}
-        <div className="grid grid-cols-2 gap-y-4 gap-x-6 pt-2 pb-2">
+        <div className="grid grid-cols-2 gap-y-4 gap-x-6 lg:gap-x-10 pt-2 pb-2">
           {/* Driver */}
           <div className="flex items-start space-x-3 text-xs min-w-0">
             <User size={20} className="text-slate-400 shrink-0 mt-0.5" />
             <div className="min-w-0 flex-1">
-              <p className="text-slate-400 uppercase font-bold text-[10px] tracking-wider leading-none">Driver</p>
+              <p className="text-slate-400 uppercase font-bold text-[10px] tracking-wider leading-none whitespace-nowrap">Driver</p>
               <p className="text-sm font-semibold text-slate-800 mt-1 truncate" title={formatNameValue(vehicle.driverName)}>
                 {formatNameValue(vehicle.driverName)}
               </p>
@@ -472,7 +473,7 @@ const VehicleCard = React.memo(function VehicleCard({
           <div className="flex items-start space-x-3 text-xs min-w-0">
             <Phone size={20} className="text-slate-400 shrink-0 mt-0.5" />
             <div className="min-w-0 flex-1">
-              <p className="text-slate-400 uppercase font-bold text-[10px] tracking-wider leading-none">Mobile</p>
+              <p className="text-slate-400 uppercase font-bold text-[10px] tracking-wider leading-none whitespace-nowrap">Mobile</p>
               <p className="text-sm font-semibold text-slate-800 mt-1 truncate" title={formatNameValue(vehicle.mobileNumber)}>
                 {formatNameValue(vehicle.mobileNumber)}
               </p>
@@ -483,7 +484,7 @@ const VehicleCard = React.memo(function VehicleCard({
           <div className="flex items-start space-x-3 text-xs min-w-0">
             <Wrench size={20} className="text-slate-400 shrink-0 mt-0.5" />
             <div className="min-w-0 flex-1">
-              <p className="text-slate-400 uppercase font-bold text-[10px] tracking-wider leading-none">Supervisor</p>
+              <p className="text-slate-400 uppercase font-bold text-[10px] tracking-wider leading-none whitespace-nowrap">Supervisor</p>
               <p className="text-sm font-semibold text-slate-800 mt-1 truncate" title={formatNameValue(vehicle.supervisorName)}>
                 {formatNameValue(vehicle.supervisorName)}
               </p>
@@ -494,7 +495,7 @@ const VehicleCard = React.memo(function VehicleCard({
           <div className="flex items-start space-x-3 text-xs min-w-0">
             <Users size={20} className="text-slate-400 shrink-0 mt-0.5" />
             <div className="min-w-0 flex-1">
-              <p className="text-slate-400 uppercase font-bold text-[10px] tracking-wider leading-none">Foreman</p>
+              <p className="text-slate-400 uppercase font-bold text-[10px] tracking-wider leading-none whitespace-nowrap">Foreman</p>
               <p className="text-sm font-semibold text-slate-800 mt-1 truncate" title={formatNameValue(vehicle.foremanName)}>
                 {formatNameValue(vehicle.foremanName)}
               </p>
@@ -505,14 +506,14 @@ const VehicleCard = React.memo(function VehicleCard({
           <div className="flex items-start space-x-3 text-xs min-w-0 col-span-2">
             <MapPin size={20} className="text-slate-400 shrink-0 mt-0.5" />
             <div className="min-w-0 flex-1">
-              <p className="text-slate-400 uppercase font-bold text-[10px] tracking-wider leading-none">Current Location</p>
+              <p className="text-slate-400 uppercase font-bold text-[10px] tracking-wider leading-none whitespace-nowrap">Current Location</p>
               <LocationText location={vehicle.currentLocation} />
             </div>
           </div>
         </div>
 
         {/* Regulatory Expiries (Insurance, Fitness, Permit, E-Way Bill, PUC) */}
-        <div className="grid grid-cols-2 xs:grid-cols-3 sm:grid-cols-5 gap-2 w-full mt-1.5">
+        <div className="grid grid-cols-2 xs:grid-cols-3 sm:grid-cols-5 gap-2 md:gap-3 w-full mt-1.5">
           <ComplianceDocCard 
             name="Insurance" 
             expiryDate={vehicle.insuranceExpiry} 
@@ -908,21 +909,121 @@ export default function FleetVehiclesView({
   const [manufacturerFilter, setManufacturerFilter] = useState<string>('All');
   const [statusFilter, setStatusFilter] = useState<string>('All');
 
-  // State for Trip History Drawer / Modal
-  const [selectedTripVehicle, setSelectedTripVehicle] = useState<Vehicle | null>(null);
-  const [isTripHistoryOpen, setIsTripHistoryOpen] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
 
-  // State for Assignment History Drawer / Modal
-  const [selectedHistoryVehicle, setSelectedHistoryVehicle] = useState<Vehicle | null>(null);
-  const [isAssignmentHistoryOpen, setIsAssignmentHistoryOpen] = useState(false);
+  // Search/Filter local states
   const [assignmentReason, setAssignmentReason] = useState('');
 
-  // Modal State for adding/editing a truck
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null);
+  // Parse state from URL search parameters
+  const tripVehicleNum = searchParams.get('tripVehicle') || '';
+  const selectedTripVehicle = useMemo(() => {
+    if (!tripVehicleNum) return null;
+    return vehicles.find(v => v.truckNumber === tripVehicleNum) || null;
+  }, [tripVehicleNum, vehicles]);
+  const isTripHistoryOpen = !!selectedTripVehicle;
 
-  // Expanded card tracking for timelines
-  const [expandedVehicleNum, setExpandedVehicleNum] = useState<string>('');
+  const setSelectedTripVehicle = (vehicle: Vehicle | null) => {
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      if (vehicle) {
+        next.set('tripVehicle', vehicle.truckNumber);
+      } else {
+        next.delete('tripVehicle');
+        next.delete('tripId'); // Also clear selected trip inside the drawer
+      }
+      return next;
+    }, { replace: true });
+  };
+
+  const setIsTripHistoryOpen = (open: boolean) => {
+    if (!open) {
+      setSearchParams(prev => {
+        const next = new URLSearchParams(prev);
+        next.delete('tripVehicle');
+        next.delete('tripId');
+        return next;
+      }, { replace: true });
+    }
+  };
+
+  const historyVehicleNum = searchParams.get('historyVehicle') || '';
+  const selectedHistoryVehicle = useMemo(() => {
+    if (!historyVehicleNum) return null;
+    return vehicles.find(v => v.truckNumber === historyVehicleNum) || null;
+  }, [historyVehicleNum, vehicles]);
+  const isAssignmentHistoryOpen = !!selectedHistoryVehicle;
+
+  const setSelectedHistoryVehicle = (vehicle: Vehicle | null) => {
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      if (vehicle) {
+        next.set('historyVehicle', vehicle.truckNumber);
+      } else {
+        next.delete('historyVehicle');
+      }
+      return next;
+    }, { replace: true });
+  };
+
+  const setIsAssignmentHistoryOpen = (open: boolean) => {
+    if (!open) {
+      setSearchParams(prev => {
+        const next = new URLSearchParams(prev);
+        next.delete('historyVehicle');
+        return next;
+      }, { replace: true });
+    }
+  };
+
+  const editVehicleNum = searchParams.get('editVehicle') || '';
+  const isNewVehicle = searchParams.get('newVehicle') === 'true';
+
+  const editingVehicle = useMemo(() => {
+    if (!editVehicleNum) return null;
+    return vehicles.find(v => v.truckNumber === editVehicleNum) || null;
+  }, [editVehicleNum, vehicles]);
+
+  const isModalOpen = !!editingVehicle || isNewVehicle;
+
+  const setEditingVehicle = (vehicle: Vehicle | null) => {
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      if (vehicle) {
+        next.set('editVehicle', vehicle.truckNumber);
+        next.delete('newVehicle');
+      } else {
+        next.delete('editVehicle');
+      }
+      return next;
+    }, { replace: true });
+  };
+
+  const setIsModalOpen = (open: boolean) => {
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      if (!open) {
+        next.delete('editVehicle');
+        next.delete('newVehicle');
+      } else {
+        next.set('newVehicle', 'true');
+        next.delete('editVehicle');
+      }
+      return next;
+    }, { replace: true });
+  };
+
+  const expandedVehicleNum = searchParams.get('expandedVehicle') || '';
+  const setExpandedVehicleNum = (num: string) => {
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      if (num) {
+        next.set('expandedVehicle', num);
+      } else {
+        next.delete('expandedVehicle');
+      }
+      return next;
+    }, { replace: true });
+  };
 
   // Delete Workflow and Toast States
   const [deleteWorkflowState, setDeleteWorkflowState] = useState<{ step: 0 | 1 | 2; truckNumber: string }>({ step: 0, truckNumber: '' });
@@ -971,60 +1072,65 @@ export default function FleetVehiclesView({
     "Ramesh", "Suresh", "Karan", "Vijay"
   ].filter(Boolean)));
 
+  // Synchronize form fields when editingVehicle changes (e.g., on initial load/refresh or clicking edit)
+  useEffect(() => {
+    if (editingVehicle) {
+      setTruckNumber(editingVehicle.truckNumber);
+      setManufacturer(editingVehicle.manufacturer);
+      setVehicleTemplate(
+        editingVehicle.vehicleTemplate || (
+          editingVehicle.manufacturer === VehicleManufacturer.TATA
+            ? (editingVehicle.tyresCount === 14 ? "Tata (14-Wheelers)" : (editingVehicle.tyresCount === 10 ? "Tata (10-Wheelers)" : "Tata (12-Wheelers)"))
+            : (editingVehicle.tyresCount === 14 ? "Ashok Leyland (14-Wheelers)" : "Ashok Leyland (12-Wheelers)")
+        )
+      );
+      setVehicleStatus(editingVehicle.vehicleStatus || editingVehicle.status || 'Available');
+      setSupervisorName(editingVehicle.supervisorName);
+      setForemanName(editingVehicle.foremanName || '');
+      setDriverName(editingVehicle.driverName);
+      setMobileNumber(editingVehicle.mobileNumber);
+      setCurrentLocation(editingVehicle.currentLocation);
+      setInsuranceExpiry(editingVehicle.insuranceExpiry || '');
+      setFitnessExpiry(editingVehicle.fitnessExpiry || '');
+      setPermitExpiry(editingVehicle.permitExpiry || '');
+      setEWayBillExpiry(editingVehicle.eWayBillExpiry || '');
+      setPucExpiry(editingVehicle.pucExpiry || '');
+      setCurrentTripFrom(editingVehicle.currentTripFrom || '');
+      setCurrentTripTo(editingVehicle.currentTripTo || '');
+      setTripStartDate(editingVehicle.tripStartDate || '');
+      setTripStatus(editingVehicle.tripStatus || 'Planned');
+      setPartyName(editingVehicle.partyName || '');
+    } else if (isNewVehicle) {
+      setTruckNumber('');
+      setManufacturer(VehicleManufacturer.TATA);
+      setVehicleTemplate('Tata (14-Wheelers)');
+      setVehicleStatus('Available');
+      setSupervisorName('Mustak');
+      setForemanName('Ramesh');
+      setDriverName('');
+      setMobileNumber('');
+      setCurrentLocation('Jaipur, RJ');
+      setInsuranceExpiry(new Date(Date.now() + 1000 * 60 * 60 * 24 * 30).toISOString().split('T')[0]); // 30 days hence
+      setFitnessExpiry(new Date(Date.now() + 1000 * 60 * 60 * 24 * 90).toISOString().split('T')[0]);  // 90 days hence
+      setPermitExpiry(new Date(Date.now() + 1000 * 60 * 60 * 24 * 180).toISOString().split('T')[0]); // 180 days hence
+      setEWayBillExpiry('');
+      setPucExpiry('');
+      setCurrentTripFrom('');
+      setCurrentTripTo('');
+      setTripStartDate(new Date().toISOString().split('T')[0]);
+      setTripStatus('Planned');
+      setPartyName('');
+    }
+  }, [editingVehicle, isNewVehicle]);
+
   // Open modal for adding a new truck
   const handleOpenAddModal = () => {
-    setEditingVehicle(null);
-    setTruckNumber('');
-    setManufacturer(VehicleManufacturer.TATA);
-    setVehicleTemplate('Tata (14-Wheelers)');
-    setVehicleStatus('Available');
-    setSupervisorName('Mustak');
-    setForemanName('Ramesh');
-    setDriverName('');
-    setMobileNumber('');
-    setCurrentLocation('Jaipur, RJ');
-    setInsuranceExpiry(new Date(Date.now() + 1000 * 60 * 60 * 24 * 30).toISOString().split('T')[0]); // 30 days hence
-    setFitnessExpiry(new Date(Date.now() + 1000 * 60 * 60 * 24 * 90).toISOString().split('T')[0]);  // 90 days hence
-    setPermitExpiry(new Date(Date.now() + 1000 * 60 * 60 * 24 * 180).toISOString().split('T')[0]); // 180 days hence
-    setEWayBillExpiry('');
-    setPucExpiry('');
-    setCurrentTripFrom('');
-    setCurrentTripTo('');
-    setTripStartDate(new Date().toISOString().split('T')[0]);
-    setTripStatus('Planned');
-    setPartyName('');
     setIsModalOpen(true);
   };
 
   // Open modal for editing an existing truck
   const handleOpenEditModal = (v: Vehicle) => {
     setEditingVehicle(v);
-    setTruckNumber(v.truckNumber);
-    setManufacturer(v.manufacturer);
-    setVehicleTemplate(
-      v.vehicleTemplate || (
-        v.manufacturer === VehicleManufacturer.TATA
-          ? (v.tyresCount === 14 ? "Tata (14-Wheelers)" : (v.tyresCount === 10 ? "Tata (10-Wheelers)" : "Tata (12-Wheelers)"))
-          : (v.tyresCount === 14 ? "Ashok Leyland (14-Wheelers)" : "Ashok Leyland (12-Wheelers)")
-      )
-    );
-    setVehicleStatus(v.vehicleStatus || v.status || 'Available');
-    setSupervisorName(v.supervisorName);
-    setForemanName(v.foremanName || '');
-    setDriverName(v.driverName);
-    setMobileNumber(v.mobileNumber);
-    setCurrentLocation(v.currentLocation);
-    setInsuranceExpiry(v.insuranceExpiry || '');
-    setFitnessExpiry(v.fitnessExpiry || '');
-    setPermitExpiry(v.permitExpiry || '');
-    setEWayBillExpiry(v.eWayBillExpiry || '');
-    setPucExpiry(v.pucExpiry || '');
-    setCurrentTripFrom(v.currentTripFrom || '');
-    setCurrentTripTo(v.currentTripTo || '');
-    setTripStartDate(v.tripStartDate || '');
-    setTripStatus(v.tripStatus || 'Planned');
-    setPartyName(v.partyName || '');
-    setIsModalOpen(true);
   };
 
   // Save changes (Add new or Update existing)
@@ -1409,8 +1515,8 @@ export default function FleetVehiclesView({
       </div>
 
       {/* Filter and Search Bar */}
-      <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="relative flex-1">
+      <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4 lg:gap-6">
+        <div className="relative flex-1 min-w-0 md:min-w-[320px] lg:min-w-[400px]">
           <Search className="absolute left-3 top-2.5 text-slate-400" size={18} />
           <input
             type="text"
@@ -1421,7 +1527,7 @@ export default function FleetVehiclesView({
           />
         </div>
 
-        <div className="flex flex-wrap items-center gap-4 w-full md:w-auto py-1">
+        <div className="flex flex-wrap items-center gap-4 lg:gap-6 w-full md:w-auto py-1">
           {/* Manufacturer Filter */}
           <div className="flex items-center space-x-2 select-none overflow-x-auto">
             <span className="text-xs text-slate-400 font-bold uppercase tracking-wider shrink-0">Manufacturer:</span>
